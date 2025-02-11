@@ -4,7 +4,7 @@ import time
 
 connected_users = {}
 
-# Rate limiting 
+# Rate limiting
 limitOfMessages = 5  # Maximum number of messages per interval
 rateLimSec = 20  # Time in seconds
 
@@ -20,8 +20,11 @@ async def handler(websocket):
                 "messages": [],  # List of message timestamps
             }
 
-            print(f"{username} connected.")
+            print(f"{username} has been connected.")
             await websocket.send("Authentication successful. You can start chatting.")
+            
+            #  Tell the other clients that a user has successfully connected.
+            await tellClients(f"{username} has been connected.")
 
             async for message in websocket:
                 # Ignore heartbeat messages silently
@@ -64,10 +67,19 @@ async def handler(websocket):
             await websocket.close()
 
     except websockets.exceptions.ConnectionClosed:
-        print(f"We have detected that {username} has disconnected. ")
+        print(f"We have detected that {username} has disconnected.")
+        await tellClients(f"{username} has unfortunately disconnected.")  # Tell all clients that a user has disconnected.
     finally:
         if username and username in connected_users:
             del connected_users[username]
+
+async def tellClients(message):
+    # Sends a message to all clients notifying them what occurred.
+    for user, conn in connected_users.items():
+        try:
+            await conn["websocket"].send(message)
+        except websockets.exceptions.ConnectionClosed:
+            continue  # Clients no longer connected are ignored.
 
 async def main():
     print("Starting WebSocket server on ws://localhost:9000")
