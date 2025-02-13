@@ -1,0 +1,221 @@
+
+<!-- This is the front end for Secure chat, user are promted to login in order to talk with other user in their company. -->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureChat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #4A90E2, #50E3C2);
+            text-align: center;
+            color: white;
+            padding: 50px 20px;
+        }
+        /*Centered Containers*/
+        .container {
+            width: 90%;
+            max-width: 450px;
+            margin: auto;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            box-shadow: 0px 0px 15px rgba(255, 255, 255, 0.3);
+        }
+
+        /* Login Form */
+        #login-container {
+            display: block;
+            
+        }
+
+        #login-container input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 8px;
+            outline: none;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            background-color: #FF6B6B;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #FF3B3B;
+        }
+
+        /* chat UI*/
+        #chat-container {
+            display: none;
+            width: 80%;
+            height: 100%;
+            align-self:  center;
+            padding: 10%;
+        }
+        #chat-box {
+            border-radius: 10px;
+            background: white;
+            color: black;
+            padding: 15px;
+            width: 100%;
+            height: 300px;
+            overflow-y: auto;
+            text-align: left;
+            margin-bottom: 10px;
+
+        }
+
+        #message-input {
+            width: 75%;
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: none;
+            outline: none;
+        }
+
+        #send-btn {
+            width: 22%;
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 8px;
+            border:none;
+            background-color: #FFD166;
+            cursor: pointer;
+            
+        }
+        #send-btn:hover {
+            background-color: #ffb347;
+        }
+    </style>
+</head>
+
+
+
+<body>
+    <!-- Slogan (Only for Login Page) -->
+    <div id="welcome-section">
+        <h1>Welcome to SecureChat</h1>
+        <h2>Chat securely in real-time!</h2>
+    </div>
+
+    <!-- Login Form -->
+    <div id="login-container" class="container">
+        <h3>Login</h3>
+        <input type="text" id="username" placeholder="Enter username">
+        <input type="password" id="password" placeholder="Enter password">
+        <button onclick="login()">Login</button>
+    </div>
+
+    <!-- Chat Interface -->
+    <div id="chat-container">
+        <h3>Chat Room</h3>
+        <div id="chat-box"></div>
+        <input type="text" id="message-input" placeholder="Type a message">
+        <button id="send-btn">Send</button>
+        <button onclick="logout()">Logout</button>
+    </div>
+
+    <script>
+        let socket;
+
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                alert("Please enter both username and password.");
+                return;
+            }
+
+            // Establish WebSocket connection
+            socket = new WebSocket("ws://localhost:9000");
+
+            // On WebSocket open, send authentication details
+            socket.onopen = function() {
+                console.log("Connected to WebSocket server.");
+                socket.send(username);
+                socket.send(password);
+            };
+
+            // Handle messages from the server
+            socket.onmessage = function(event) {
+                console.log("Received:", event.data);
+                if (event.data === "Authentication successful. You can start chatting.") {
+                    document.getElementById('login-container').style.display = "none";
+                    document.getElementById('chat-container').style.display = "block";
+
+                    const welcomeSection = document.getElementById('welcome-section')
+                    if(welcomeSection){
+                        welcomeSection.remove();
+                    }
+                } else if (event.data == "Authentication failed."){
+                    alert("Invalid login credentials.");
+                    socket.close();
+                }else{
+                    document.getElementById("chat-box").innerHTML += `<p>${event.data}</p>`;
+                    document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
+                }    
+          
+            };
+
+            // Handle WebSocket errors
+            socket.onerror = function(error) {
+                console.log("WebSocket Error:", error);
+            };
+
+            // Handle WebSocket close event
+            socket.onclose = function() {
+                console.log("Disconnected from WebSocket server.");
+            };
+        }
+
+        // Send message function
+        document.getElementById("send-btn").addEventListener("click", function() {
+           const messageInput = document.getElementById("message-input");
+           const message = messageInput.value.trim();
+
+           if (message !== "") {
+             document.getElementById("chat-box").innerHTML += `<p><strong>You:</strong> ${message}</p>`;
+             socket.send(message);
+             messageInput.value = "";
+            }
+        });
+
+
+        // Logout function
+        function logout() {
+            if (socket) {
+                socket.close();
+            }
+            document.getElementById('login-container').style.display = "block";
+            let welcomeSection = document.getElementById('welcome-section');
+            if (!welcomeSection) {
+                const newWelcome = document.createElement('div');
+                newWelcome.id = "welcome-section";
+                newWelcome.innerHTML = "<h1>Welcome to SecureChat</h1><h2>Chat securely in real-time!</h2>";
+                document.body.insertBefore(newWelcome, document.body.firstChild);
+            }
+            document.getElementById('chat-container').style.display = "none";
+        }
+    </script>
+    
+</body>
+</html>
