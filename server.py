@@ -29,7 +29,7 @@ async def handler(websocket):
             async for message in websocket:
 
                 if message == "disconnecting":
-                    print(f"{username} has loogged out.")
+                    print(f"{username} has logged out.")
                     await tellClients(f"{username} has logged out.")
                     break 
                 
