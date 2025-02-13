@@ -201,20 +201,16 @@
 
 
         // Logout function
-        function logout() {
-            if (socket) {
+        function logout(){
+            if(socket.readyState == WebSocket.OPEN){
+                socket.send("disconnecting");
                 socket.close();
             }
+
             document.getElementById('login-container').style.display = "block";
-            let welcomeSection = document.getElementById('welcome-section');
-            if (!welcomeSection) {
-                const newWelcome = document.createElement('div');
-                newWelcome.id = "welcome-section";
-                newWelcome.innerHTML = "<h1>Welcome to SecureChat</h1><h2>Chat securely in real-time!</h2>";
-                document.body.insertBefore(newWelcome, document.body.firstChild);
-            }
             document.getElementById('chat-container').style.display = "none";
         }
+
     </script>
     
 </body>

@@ -48,6 +48,7 @@ async def chat_client():
                 message = await asyncio.to_thread(input, "> ")
                 if message.lower() == "exit":
                     print("Exiting chat...")
+                    await websocket.send("disconnecting")
                     await websocket.close() 
                     break
                 await websocket.send(message)

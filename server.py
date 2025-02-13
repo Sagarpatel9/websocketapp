@@ -27,6 +27,12 @@ async def handler(websocket):
             await tellClients(f"{username} has been connected.")
 
             async for message in websocket:
+
+                if message == "disconnecting":
+                    print(f"{username} has loogged out.")
+                    await tellClients(f"{username} has logged out.")
+                    break 
+                
                 # Ignore heartbeat messages silently
                 if message == "heartbeat":
                     continue
