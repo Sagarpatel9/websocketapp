@@ -1,6 +1,8 @@
 import asyncio
 import websockets
 import time
+import signal
+import sys
 
 connected_users = {}
 
@@ -23,14 +25,14 @@ async def handler(websocket):
             print(f"{username} has been connected.")
             await websocket.send("Authentication successful. You can start chatting.")
             
-            #  Tell the other clients that a user has successfully connected.
+            # Tell the other clients that a user has successfully connected.
             await tellClients(f"{username} has been connected.")
 
             async for message in websocket:
 
                 if message == "disconnecting":
-                    print(f"{username} has logged out.")
-                    await tellClients(f"{username} has logged out.")
+                    print(f"{username} has disconnected.")
+                    await tellClients(f"{username} has disconnected.")
                     break 
                 
                 # Ignore heartbeat messages silently
@@ -95,7 +97,19 @@ async def main():
 
     server = await websockets.serve(handler_wrapper, "localhost", 9000)
 
+    def shutDown(signal, frame):
+        print("Server shutting down...")
+        asyncio.create_task(shutServer(server))
+
+    signal.signal(signal.SIGINT, shutDown)
+
     await asyncio.Future()  # Keeps the server running indefinitely
+
+async def shutServer(server):
+    # Tells all users that server is shutting down.
+    await tellClients("Server is unfortunately down right now.")
+    server.close()
+    await server.wait_closed()
 
 if __name__ == "__main__":
     try:

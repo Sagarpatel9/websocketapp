@@ -1,6 +1,4 @@
-
-<!-- This is the front end for Secure chat, user are promted to login in order to talk with other user in their company. -->
-
+<!-- This is the front end for Secure chat, users are prompted to login in order to talk with other users in their company. -->
 
 <!DOCTYPE html>
 <html lang="en">
@@ -16,7 +14,7 @@
             color: white;
             padding: 50px 20px;
         }
-        /*Centered Containers*/
+        /* Centered Containers */
         .container {
             width: 90%;
             max-width: 450px;
@@ -30,7 +28,6 @@
         /* Login Form */
         #login-container {
             display: block;
-            
         }
 
         #login-container input {
@@ -61,12 +58,12 @@
             background-color: #FF3B3B;
         }
 
-        /* chat UI*/
+        /* Chat UI */
         #chat-container {
             display: none;
             width: 80%;
             height: 100%;
-            align-self:  center;
+            align-self: center;
             padding: 10%;
         }
         #chat-box {
@@ -79,7 +76,6 @@
             overflow-y: auto;
             text-align: left;
             margin-bottom: 10px;
-
         }
 
         #message-input {
@@ -96,43 +92,40 @@
             padding: 12px;
             font-size: 16px;
             border-radius: 8px;
-            border:none;
+            border: none;
             background-color: #FFD166;
             cursor: pointer;
-            
         }
         #send-btn:hover {
             background-color: #ffb347;
         }
 
         #file-box {
-        display: flex;
-        justify-content: center; 
-        align-items: center; 
-        margin: 20px auto; 
-        width: 66%; /* container width */
-        height: 60px; 
-        border-radius: 8px;
-        padding: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px auto;
+            width: 66%; /* container width */
+            height: 60px;
+            border-radius: 8px;
+            padding: 10px;
         }
 
         #file-btn {
-        width: 120px; 
-        padding: 12px;
-        font-size: 16px;
-        border-radius: 8px;
-        border: none;
-        background-color: #FFD166;
-        cursor: pointer;
+            width: 120px;
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: none;
+            background-color: #FFD166;
+            cursor: pointer;
         }
 
         #file-btn:hover {
-        background-color: #ffb347;
+            background-color: #ffb347;
         }
     </style>
 </head>
-
-
 
 <body>
     <!-- Slogan (Only for Login Page) -->
@@ -164,20 +157,25 @@
 
     <script>
         let socket;
+        let username;  // Usernames must be stored so that reconnection is successful
 
         function login() {
-            const username = document.getElementById('username').value;
+            username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            
+
             if (!username || !password) {
                 alert("Please enter both username and password.");
                 return;
             }
 
+            connSock(username, password);
+        }
+
+        function connSock(username, password) {
             // Establish WebSocket connection
             socket = new WebSocket("ws://localhost:9000");
 
-            // On WebSocket open, send authentication details
+            // On WebSocket open, send auth details
             socket.onopen = function() {
                 console.log("Connected to WebSocket server.");
                 socket.send(username);
@@ -191,18 +189,17 @@
                     document.getElementById('login-container').style.display = "none";
                     document.getElementById('chat-container').style.display = "block";
 
-                    const welcomeSection = document.getElementById('welcome-section')
-                    if(welcomeSection){
+                    const welcomeSection = document.getElementById('welcome-section');
+                    if (welcomeSection) {
                         welcomeSection.remove();
                     }
-                } else if (event.data == "Authentication failed."){
+                } else if (event.data == "Authentication failed.") {
                     alert("Invalid login credentials.");
                     socket.close();
-                }else{
+                } else {
                     document.getElementById("chat-box").innerHTML += `<p>${event.data}</p>`;
                     document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
-                }    
-          
+                }
             };
 
             // Handle WebSocket errors
@@ -212,35 +209,38 @@
 
             // Handle WebSocket close event
             socket.onclose = function() {
-                console.log("Disconnected from WebSocket server.");
+                console.log("Disconnected from WebSocket server. Attempting to reconnect...");
+                setTimeout(() => {
+                    if (username) {
+                        console.log("Reconnecting...");
+                        connSock(username, "password"); // Makes reestablishing connections under same username possible
+                    }
+                }, 6500); // Retry connection every 6.5 seconds
             };
         }
 
         // Send message function
         document.getElementById("send-btn").addEventListener("click", function() {
-           const messageInput = document.getElementById("message-input");
-           const message = messageInput.value.trim();
+            const messageInput = document.getElementById("message-input");
+            const message = messageInput.value.trim();
 
-           if (message !== "") {
-             document.getElementById("chat-box").innerHTML += `<p><strong>You:</strong> ${message}</p>`;
-             socket.send(message);
-             messageInput.value = "";
+            if (message !== "") {
+                document.getElementById("chat-box").innerHTML += `<p><strong>You:</strong> ${message}</p>`;
+                socket.send(message);
+                messageInput.value = "";
             }
         });
 
-
         // Logout function
-        function logout(){
-            if(socket.readyState == WebSocket.OPEN){
+        function logout() {
+            if (socket.readyState == WebSocket.OPEN) {
                 socket.send("disconnecting");
                 socket.close();
             }
-
+            username = null;  
             document.getElementById('login-container').style.display = "block";
             document.getElementById('chat-container').style.display = "none";
         }
-
     </script>
-    
 </body>
 </html>
