@@ -89,27 +89,54 @@ async def tellClients(message):
         except websockets.exceptions.ConnectionClosed:
             continue  # Clients no longer connected are ignored.
 
+
+async def shutServer(server):
+    print("Shutting down server...")
+
+    # Notify all clients about shutdown
+    tasks = [conn["websocket"].send("Server is shutting down...") for conn in list(connected_users.values())]
+    await asyncio.gather(*tasks, return_exceptions=True)  # Send shutdown message to all users
+
+    # Close all connections concurrently
+    tasks = [conn["websocket"].close() for conn in list(connected_users.values())]
+    await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Clear the dictionary AFTER iteration
+    connected_users.clear()
+
+    # Close the WebSocket server
+    server.close()
+    await server.wait_closed()
+    
+    print("Server successfully shut down.")
+
+    # Stop the event loop safely
+    try:
+        loop = asyncio.get_running_loop()
+        loop.stop()
+    except RuntimeError:
+        pass  
+
+
 async def main():
     print("Starting WebSocket server on ws://localhost:9000")
-    
+
     async def handler_wrapper(*args):
         return await handler(args[0])
 
     server = await websockets.serve(handler_wrapper, "localhost", 9000)
 
-    def shutDown(signal, frame):
-        print("Server shutting down...")
-        asyncio.create_task(shutServer(server))
+    stop_event = asyncio.Event()
 
-    signal.signal(signal.SIGINT, shutDown)
+    def shutDown(signal_received, frame):
+        print("Received shutdown signal...")
+        stop_event.set()  
+        asyncio.create_task(shutServer(server))  
 
-    await asyncio.Future()  # Keeps the server running indefinitely
+    signal.signal(signal.SIGINT, shutDown)  
 
-async def shutServer(server):
-    # Tells all users that server is shutting down.
-    await tellClients("Server is unfortunately down right now.")
-    server.close()
-    await server.wait_closed()
+    await stop_event.wait()  
+
 
 if __name__ == "__main__":
     try:
