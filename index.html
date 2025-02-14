@@ -99,31 +99,6 @@
         #send-btn:hover {
             background-color: #ffb347;
         }
-
-        #file-box {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 20px auto;
-            width: 66%; /* container width */
-            height: 60px;
-            border-radius: 8px;
-            padding: 10px;
-        }
-
-        #file-btn {
-            width: 120px;
-            padding: 12px;
-            font-size: 16px;
-            border-radius: 8px;
-            border: none;
-            background-color: #FFD166;
-            cursor: pointer;
-        }
-
-        #file-btn:hover {
-            background-color: #ffb347;
-        }
     </style>
 </head>
 
@@ -148,10 +123,6 @@
         <div id="chat-box"></div>
         <input type="text" id="message-input" placeholder="Type a message">
         <button id="send-btn">Send</button>
-        <div id="file-box">
-            <input type="file" id="file-input">
-            <button id="file-btn" onclick="shareFile()">Share file</button>
-        </div>
         <button onclick="logout()">Logout</button>
     </div>
 
