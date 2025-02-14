@@ -209,14 +209,17 @@
 
             // Handle WebSocket close event
             socket.onclose = function() {
-                console.log("Disconnected from WebSocket server. Attempting to reconnect...");
-                setTimeout(() => {
-                    if (username) {
-                        console.log("Reconnecting...");
-                        connSock(username, "password"); // Makes reestablishing connections under same username possible
-                    }
-                }, 6500); // Retry connection every 6.5 seconds
+                console.log("Disconnected from WebSocket server.");
+                if (username) {
+                    setTimeout(() => {
+                        if (username) { // Double-check username exists before reconnecting
+                            console.log("Reconnecting...");
+                            connSock(username, "password");
+                        }
+                    }, 6500);
+                } 
             };
+
         }
 
         // Send message function
@@ -236,6 +239,7 @@
             if (socket.readyState == WebSocket.OPEN) {
                 socket.send("disconnecting");
                 socket.close();
+                socket = null;
             }
             username = null;  
             document.getElementById('login-container').style.display = "block";

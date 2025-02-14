@@ -17,15 +17,14 @@ async def handler(websocket):
         password = await websocket.recv()
 
         if username in ["user1", "user2"] and password == "password":
+
             connected_users[username] = {
                 "websocket": websocket,
                 "messages": [],  # List of message timestamps
             }
 
             print(f"{username} has been connected.")
-            await websocket.send("Authentication successful. You can start chatting.")
-            
-            # Tell the other clients that a user has successfully connected.
+            await websocket.send("Authentication successful. You can start chatting.") # Tell the other clients that a user has successfully connected.
             await tellClients(f"{username} has been connected.")
 
             async for message in websocket:
