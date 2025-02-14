@@ -144,7 +144,7 @@
 
         function connSock(username, password) {
             // Establish WebSocket connection
-            socket = new WebSocket("ws://localhost:9000");
+            socket = new WebSocket("wss://2c1c-71-95-30-202.ngrok-free.app");
 
             // On WebSocket open, send auth details
             socket.onopen = function() {
