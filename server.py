@@ -3,12 +3,21 @@ import websockets
 import time
 import signal
 import sys
+import secrets
 
 connected_users = {}
+stored_users = {
+    "user1": "ABC123",
+    "user2": "XYZ789",
+    "user3": "COMPANY_XYZ78",
+
+}  
 
 # Rate limiting
 limitOfMessages = 5  # Maximum number of messages per interval
 rateLimSec = 20  # Time in seconds
+
+
 
 async def handler(websocket):
     username = None  # Initialize to avoid NameError
@@ -16,7 +25,7 @@ async def handler(websocket):
         username = await websocket.recv()
         password = await websocket.recv()
 
-        if username in ["user1", "user2"] and password == "password":
+        if username in stored_users and password == stored_users[username]:
 
             connected_users[username] = {
                 "websocket": websocket,
@@ -70,7 +79,7 @@ async def handler(websocket):
                     del connected_users[user]
 
         else:
-            await websocket.send("Authentication failed.")
+            await websocket.send("Authentication failed. Invalid company code.")
             await websocket.close()
 
     except websockets.exceptions.ConnectionClosed:
