@@ -60,16 +60,37 @@
         /* Chat UI */
         /* Sidebar - Users List */
 
-        #chat-wrapper{
+        #chat-wrapper {
             display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 85vw;
+            height: 85vh;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.2);
+            justify-content: space-between; /* Ensures space between sections */
+            align-items: center;
+            padding: 20px; /* Adds extra space inside */
         }
+
+
         #users-container {
             width: 30%;
-            background: #FF6B6B;
-            color: white;
-            padding: 15px;
+            height: 95%;
+            padding: 20px;
             overflow-y: auto;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            border: 4px solid lightgrey; /* Adds a separator between users and chat */
         }
+
+
 
         #users-container h3 {
             margin-bottom: 10px;
@@ -93,11 +114,15 @@
 
         /* Chat Main Section */
         #chat-container {
-            width: 70%;
+            width: 65%;
+            height: 95%;
             display: flex;
             flex-direction: column;
             background: white;
-            padding: 15px;
+            padding: 20px;
+            border-radius: 10px;
+            justify-content: space-between; /* Proper spacing */
+            align-items: stretch;
         }
 
         /* Chat Header */
@@ -118,33 +143,49 @@
         }
 
         /* Chat Bubbles */
+        .message-wrapper {
+            display: flex;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .right {
+            justify-content: flex-end; /* Sent messages on the right */
+        }
+
+        .left {
+            justify-content: flex-start; /* Received messages on the left */
+        }
+
         .chat-message {
-            padding: 8px 12px;
-            border-radius: 10px;
-            margin: 5px 0;
-            max-width: 75%;
-            display: inline-block;
+            padding: 10px 14px;
+            border-radius: 15px;
+            max-width: 70%;
             word-wrap: break-word;
+            font-size: 16px;
+            line-height: 1.4;
         }
 
         .sent {
             background: #FFD166;
-            align-self: flex-end;
             text-align: right;
         }
 
         .received {
             background: #FF6B6B;
             color: white;
-            align-self: flex-start;
             text-align: left;
         }
+
 
         /* Chat Input */
         #chat-input {
             display: flex;
             padding: 10px;
             border-top: 2px solid #ddd;
+            gap: 10px;
+            align-items: center;
+            justify-content: flex-end;
         }
 
         #message-input {
@@ -156,10 +197,11 @@
         }
 
         #send-btn {
-            margin-left: 10px;
-            padding: 12px;
-            font-size: 16px;
-            border-radius: 8px;
+            padding: 8px 15px; 
+            font-size: 14px;
+            border-radius: 6px;
+            min-width: 60px;
+            max-width: 100px;
             border: none;
             background-color: #FF6B6B;
             color: white;
@@ -259,18 +301,28 @@
                     alert("Invalid login credentials.");
                     socket.close();
                 } else {
+                    let chatBox = document.getElementById("chat-box");
+                    let messageWrapper = document.createElement("div"); // A wrapper for each message
+                    messageWrapper.classList.add("message-wrapper");
+
                     let messageContainer = document.createElement("div");
                     messageContainer.classList.add("chat-message");
 
                     if (event.data.startsWith(username)) {
-                        messageContainer.classList.add("sent");  // Yellow bubble for sent messages
+                        messageContainer.classList.add("sent");
+                        messageWrapper.classList.add("right");  // Align to right
                     } else {
-                        messageContainer.classList.add("received");  // Red bubble for received messages
+                        messageContainer.classList.add("received");
+                        messageWrapper.classList.add("left");  // Align to left
                     }
 
                     messageContainer.innerText = event.data;
-                    document.getElementById("chat-box").appendChild(messageContainer);
-                    document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
+
+                    // Append message inside wrapper, then add to chat box
+                    messageWrapper.appendChild(messageContainer);
+                    chatBox.appendChild(messageWrapper);
+                    chatBox.scrollTop = chatBox.scrollHeight;  // Auto-scroll to bottom
+
 
                 }
             };
@@ -302,13 +354,25 @@
             const message = messageInput.value.trim();
 
             if (message !== "" && currentChatUser) {
+                let chatBox = document.getElementById("chat-box");
+                let messageWrapper = document.createElement("div"); // Wrapper for sent messages
+                messageWrapper.classList.add("message-wrapper", "right");
+
+                let messageContainer = document.createElement("div");
+                messageContainer.classList.add("chat-message", "sent");
+
+                messageContainer.innerText = `You: ${message}`;
+                messageWrapper.appendChild(messageContainer);
+                chatBox.appendChild(messageWrapper);
+                chatBox.scrollTop = chatBox.scrollHeight;
+
                 socket.send(`@${currentChatUser} ${message}`);
-                document.getElementById("chat-box").innerHTML += `<p><strong>You:</strong> ${message}</p>`;
                 messageInput.value = "";
             } else {
                 alert("Select a user to chat first.");
             }
         });
+
 
 
         // Logout function
@@ -343,10 +407,16 @@
 
 
         function openChat(user) {
-            currentChatUser = user;
-            document.getElementById("chat-title").innerText = `Chat with ${user}`;
-            document.getElementById("chat-box").innerHTML = "";
+        currentChatUser = user;
+        document.getElementById("chat-title").innerText = `Chat with ${user}`;
+        document.getElementById("chat-box").innerHTML = "";
+
+        // Request chat history from the server
+        if (socket.readyState === WebSocket.OPEN) {
+            socket.send(`HISTORY_REQUEST:${user}`);
         }
+    }
+
 
 
 
