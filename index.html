@@ -58,46 +58,119 @@
         }
 
         /* Chat UI */
-        #chat-container {
+        /* Sidebar - Users List */
+
+        #chat-wrapper{
             display: none;
-            width: 80%;
-            height: 100%;
-            align-self: center;
-            padding: 10%;
         }
-        #chat-box {
-            border-radius: 10px;
-            background: white;
-            color: black;
+        #users-container {
+            width: 30%;
+            background: #FF6B6B;
+            color: white;
             padding: 15px;
-            width: 100%;
-            height: 500px;
             overflow-y: auto;
-            text-align: left;
+        }
+
+        #users-container h3 {
             margin-bottom: 10px;
+            font-size: 18px;
+            text-align: left;
+            border-bottom: 2px solid white;
+            padding-bottom: 5px;
+        }
+
+        .user-item {
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 5px;
+            text-align: left;
+            transition: background 0.3s;
+        }
+
+        .user-item:hover {
+            background: #FF3B3B;
+        }
+
+        /* Chat Main Section */
+        #chat-container {
+            width: 70%;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            padding: 15px;
+        }
+
+        /* Chat Header */
+        #chat-header {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 10px;
+            border-bottom: 2px solid #ddd;
+            text-align: left;
+        }
+
+        /* Chat Messages */
+        #chat-box {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            text-align: left;
+        }
+
+        /* Chat Bubbles */
+        .chat-message {
+            padding: 8px 12px;
+            border-radius: 10px;
+            margin: 5px 0;
+            max-width: 75%;
+            display: inline-block;
+            word-wrap: break-word;
+        }
+
+        .sent {
+            background: #FFD166;
+            align-self: flex-end;
+            text-align: right;
+        }
+
+        .received {
+            background: #FF6B6B;
+            color: white;
+            align-self: flex-start;
+            text-align: left;
+        }
+
+        /* Chat Input */
+        #chat-input {
+            display: flex;
+            padding: 10px;
+            border-top: 2px solid #ddd;
         }
 
         #message-input {
-            width: 75%;
+            flex: 1;
             padding: 12px;
             font-size: 16px;
             border-radius: 8px;
-            border: none;
-            outline: none;
+            border: 1px solid #ccc;
         }
 
         #send-btn {
-            width: 22%;
+            margin-left: 10px;
             padding: 12px;
             font-size: 16px;
             border-radius: 8px;
             border: none;
-            background-color: #FFD166;
+            background-color: #FF6B6B;
+            color: white;
             cursor: pointer;
+            transition: background 0.3s;
         }
+
         #send-btn:hover {
-            background-color: #ffb347;
+            background-color: #FF3B3B;
         }
+
     </style>
 </head>
 
@@ -117,17 +190,32 @@
     </div>
 
     <!-- Chat Interface -->
-    <div id="chat-container">
-        <h3>Chat Room</h3>
-        <div id="chat-box"></div>
-        <input type="text" id="message-input" placeholder="Type a message">
-        <button id="send-btn">Send</button>
-        <button onclick="logout()">Logout</button>
+    <div id="chat-wrapper">
+        <!-- Sidebar for users -->
+        <div id="users-container">
+            <h3>Online Users</h3>
+            <div id="users-list"></div>
+        </div>
+    
+        <!-- Chat section -->
+        <div id="chat-container">
+            <div id="chat-header">
+                <h3 id="chat-title">Select a user to chat</h3>
+            </div>
+            <div id="chat-box"></div>
+            <div id="chat-input">
+                <input type="text" id="message-input" placeholder="Type a message...">
+                <button id="send-btn">Send</button>
+            </div>
+        </div>
     </div>
+    
+    
 
     <script>
         let socket;
-        let username;  // Usernames must be stored so that reconnection is successful
+        let username;
+        let currentChatUser = null;  
 
         function login() {
             username = document.getElementById('username').value;
@@ -155,22 +243,38 @@
             // Handle messages from the server
             socket.onmessage = function(event) {
                 console.log("Received:", event.data);
-                if (event.data === "Authentication successful. You can start chatting.") {
+
+                if (event.data.startsWith("USERS:")) {
+                    // Extract the user list after "USERS:"
+                    updateUsersList(event.data.substring(6).split(","));
+                } else if (event.data === "Authentication successful. You can start chatting.") {
                     document.getElementById('login-container').style.display = "none";
-                    document.getElementById('chat-container').style.display = "block";
+                    document.getElementById('chat-wrapper').style.display = "flex";
 
                     const welcomeSection = document.getElementById('welcome-section');
                     if (welcomeSection) {
                         welcomeSection.remove();
                     }
-                } else if (event.data == "Authentication failed.") {
+                } else if (event.data === "Authentication failed.") {
                     alert("Invalid login credentials.");
                     socket.close();
                 } else {
-                    document.getElementById("chat-box").innerHTML += `<p>${event.data}</p>`;
+                    let messageContainer = document.createElement("div");
+                    messageContainer.classList.add("chat-message");
+
+                    if (event.data.startsWith(username)) {
+                        messageContainer.classList.add("sent");  // Yellow bubble for sent messages
+                    } else {
+                        messageContainer.classList.add("received");  // Red bubble for received messages
+                    }
+
+                    messageContainer.innerText = event.data;
+                    document.getElementById("chat-box").appendChild(messageContainer);
                     document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
+
                 }
             };
+
 
             // Handle WebSocket errors
             socket.onerror = function(error) {
@@ -197,12 +301,15 @@
             const messageInput = document.getElementById("message-input");
             const message = messageInput.value.trim();
 
-            if (message !== "") {
+            if (message !== "" && currentChatUser) {
+                socket.send(`@${currentChatUser} ${message}`);
                 document.getElementById("chat-box").innerHTML += `<p><strong>You:</strong> ${message}</p>`;
-                socket.send(message);
                 messageInput.value = "";
+            } else {
+                alert("Select a user to chat first.");
             }
         });
+
 
         // Logout function
         function logout() {
@@ -213,8 +320,36 @@
             }
             username = null;  
             document.getElementById('login-container').style.display = "block";
-            document.getElementById('chat-container').style.display = "none";
+            document.getElementById('chat-wrapper').style.display = "none";
         }
+
+
+
+
+        function updateUsersList(users) {
+            const userContainer = document.getElementById("users-list");
+            userContainer.innerHTML = "";
+            
+            users.forEach(user => {
+                if (user !== username) {  // Don't show the current user in the list
+                    let userElement = document.createElement("div");
+                    userElement.innerText = user;
+                    userElement.className = "user-item";
+                    userElement.onclick = function() { openChat(user); };
+                    userContainer.appendChild(userElement);
+                }
+            });
+        }
+
+
+        function openChat(user) {
+            currentChatUser = user;
+            document.getElementById("chat-title").innerText = `Chat with ${user}`;
+            document.getElementById("chat-box").innerHTML = "";
+        }
+
+
+
     </script>
 </body>
 </html>

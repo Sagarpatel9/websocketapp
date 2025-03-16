@@ -20,74 +20,60 @@ rateLimSec = 20  # Time in seconds
 
 
 async def handler(websocket):
-    username = None  # Initialize to avoid NameError
+    username = None  # To prevent errors if user disconnects early
     try:
         username = await websocket.recv()
         password = await websocket.recv()
 
         if username in stored_users and password == stored_users[username]:
+            connected_users[username] = websocket
+            print(f"{username} has connected.")
 
-            connected_users[username] = {
-                "websocket": websocket,
-                "messages": [],  # List of message timestamps
-            }
+            # Send updated user list to all clients
+            await broadcast_users_list()
 
-            print(f"{username} has been connected.")
-            await websocket.send("Authentication successful. You can start chatting.") # Tell the other clients that a user has successfully connected.
-            await tellClients(f"{username} has been connected.")
+            await websocket.send("Authentication successful. You can start chatting.")
 
             async for message in websocket:
-
                 if message == "disconnecting":
                     print(f"{username} has disconnected.")
-                    await tellClients(f"{username} has disconnected.")
-                    break 
-                
-                # Ignore heartbeat messages silently
-                if message == "heartbeat":
-                    continue
+                    break
 
-                # Rate limiting
-                currentTime = time.time()
-                userInfo = connected_users[username]
+                if message.startswith("@"):  # Private message format: @user message
+                    parts = message.split(" ", 1)
+                    if len(parts) > 1:
+                        target_user = parts[0][1:]  # Remove '@' from username
+                        msg_content = parts[1]
 
-                # Remove messages older than 'rateLimSec'
-                userInfo["messages"] = [
-                    messageTime for messageTime in userInfo["messages"] if currentTime - messageTime < rateLimSec
-                ]
-
-                if len(userInfo["messages"]) >= limitOfMessages:
-                    await websocket.send("You have exceeded the rate limit. Please stop spamming!")
-                    continue
-
-                # Save the message timestamp
-                userInfo["messages"].append(currentTime)
-
-                print(f"{username}: {message}")
-
-                # Broadcast message to all connected users
-                disconnected_users = []
-                for user, conn in connected_users.items():
-                    if user != username:  # Don't send the message back to the sender
-                        try:
-                            await conn["websocket"].send(f"{username}: {message}")
-                        except websockets.exceptions.ConnectionClosed:
-                            disconnected_users.append(user)
-
-                # Remove disconnected users
-                for user in disconnected_users:
-                    del connected_users[user]
+                        if target_user in connected_users:
+                            try:
+                                await connected_users[target_user].send(f"{username}: {msg_content}")
+                            except websockets.exceptions.ConnectionClosed:
+                                del connected_users[target_user]  # Remove disconnected user
+                    else:
+                        await websocket.send("Invalid message format. Use @username message")
+                else:
+                    await websocket.send("To send a message, use @recipient_username message_content.")
 
         else:
-            await websocket.send("Authentication failed. Invalid company code.")
+            await websocket.send("Authentication failed. Invalid username or password.")
             await websocket.close()
 
     except websockets.exceptions.ConnectionClosed:
-        print(f"We have detected that {username} has disconnected.")
-        await tellClients(f"{username} has unfortunately disconnected.")  # Tell all clients that a user has disconnected.
+        print(f"{username} has disconnected.")
     finally:
         if username and username in connected_users:
             del connected_users[username]
+            await broadcast_users_list()
+
+
+async def broadcast_users_list():
+    """Sends an updated list of connected users to all clients."""
+    user_list = ",".join(connected_users.keys())  # Convert list to comma-separated string
+    for user in connected_users.values():
+        await user.send(f"USERS:{user_list}")
+
+
 
 async def tellClients(message):
     # Sends a message to all clients notifying them what occurred.
