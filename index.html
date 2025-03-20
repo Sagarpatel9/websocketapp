@@ -229,6 +229,7 @@
         <input type="text" id="username" placeholder="Enter username">
         <input type="password" id="password" placeholder="Enter password">
         <button onclick="login()">Login</button>
+        <p id="login-status" style="color: red; font-weight: bold;"></p>
     </div>
 
     <!-- Chat Interface -->
@@ -258,94 +259,117 @@
         let socket;
         let username;
         let currentChatUser = null;  
+        let failedAttempts = 0;
+        let maxAttempts = 5;
+        let lockoutTimer;
 
         function login() {
             username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
             if (!username || !password) {
-                alert("Please enter both username and password.");
+                document.getElementById("login-status").innerText = "Please enter both username and password.";
                 return;
             }
 
             connSock(username, password);
         }
 
+
+
+
+        
+
+
+
         function connSock(username, password) {
-            // Establish WebSocket connection
             socket = new WebSocket("ws://localhost:9000");
 
-            // On WebSocket open, send auth details
-            socket.onopen = function() {
-                console.log("Connected to WebSocket server.");
+            socket.onopen = function () {
                 socket.send(username);
                 socket.send(password);
             };
 
-            // Handle messages from the server
-            socket.onmessage = function(event) {
-                console.log("Received:", event.data);
+            socket.onmessage = function (event) {
+                let loginStatus = document.getElementById("login-status");
+                let passwordField = document.getElementById("password");
+
+
 
                 if (event.data.startsWith("USERS:")) {
-                    // Extract the user list after "USERS:"
-                    updateUsersList(event.data.substring(6).split(","));
+                    let usersList = event.data.substring(6).split(",");  
+                    updateUsersList(usersList);
                 } else if (event.data === "Authentication successful. You can start chatting.") {
-                    document.getElementById('login-container').style.display = "none";
-                    document.getElementById('chat-wrapper').style.display = "flex";
+                    loginStatus.style.color = "green";
+                    loginStatus.innerText = "Login successful! Redirecting...";
+                    setTimeout(() => {
+                        document.getElementById('login-container').style.display = "none";
+                        document.getElementById('chat-wrapper').style.display = "flex";
+                    }, 1000);
+                } else if (event.data.startsWith("AUTH_FAILED")) {
+                    let remaining = parseInt(event.data.split(":")[1], 10);
+                    failedAttempts = maxAttempts - remaining;
 
-                    const welcomeSection = document.getElementById('welcome-section');
-                    if (welcomeSection) {
-                        welcomeSection.remove();
+                    loginStatus.style.color = "red";
+                    loginStatus.innerText = `Incorrect credentials. Attempts left: ${remaining}`;
+                    passwordField.value = "";  // Reset password field
+
+                    if (remaining <= 0) {
+                        loginStatus.innerText = "Too many failed attempts. You are locked out.";
                     }
-                } else if (event.data === "Authentication failed.") {
-                    alert("Invalid login credentials.");
-                    socket.close();
-                } else {
-                    let chatBox = document.getElementById("chat-box");
-                    let messageWrapper = document.createElement("div"); // A wrapper for each message
-                    messageWrapper.classList.add("message-wrapper");
-
-                    let messageContainer = document.createElement("div");
-                    messageContainer.classList.add("chat-message");
-
-                    if (event.data.startsWith(username)) {
-                        messageContainer.classList.add("sent");
-                        messageWrapper.classList.add("right");  // Align to right
-                    } else {
-                        messageContainer.classList.add("received");
-                        messageWrapper.classList.add("left");  // Align to left
-                    }
-
-                    messageContainer.innerText = event.data;
-
-                    // Append message inside wrapper, then add to chat box
-                    messageWrapper.appendChild(messageContainer);
-                    chatBox.appendChild(messageWrapper);
-                    chatBox.scrollTop = chatBox.scrollHeight;  // Auto-scroll to bottom
-
-
+                } else if (event.data.startsWith("LOCKOUT")) {
+                    let remainingTime = parseInt(event.data.split(":")[1], 10);
+                    loginStatus.style.color = "red";
+                    loginStatus.innerText = `Too many failed attempts. Try again in ${remainingTime} seconds.`;
+                    startLockoutTimer(remainingTime);
+                } else{
+                    appendMessage(event.data);
                 }
             };
+        }
+
+        function appendMessage(message) {
+            let chatBox = document.getElementById("chat-box");
+            let messageWrapper = document.createElement("div");
+
+            let sender = message.split(":")[0].trim();
+            let text = message.split(":").slice(1).join(":").trim();
+        
+
+            if (sender === username) {
+                messageWrapper.classList.add("message-wrapper", "right");
+                text = "You: " + text;
+            } else {
+                messageWrapper.classList.add("message-wrapper", "left");
+            }
+
+            let messageContainer = document.createElement("div");
+            messageContainer.classList.add("chat-message", sender === username ? "sent" : "received");
+
+            messageContainer.innerText = text;
+            messageWrapper.appendChild(messageContainer);
+            chatBox.appendChild(messageWrapper);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
 
 
-            // Handle WebSocket errors
-            socket.onerror = function(error) {
-                console.log("WebSocket Error:", error);
-            };
 
-            // Handle WebSocket close event
-            socket.onclose = function() {
-                console.log("Disconnected from WebSocket server.");
-                if (username) {
-                    setTimeout(() => {
-                        if (username) { // Double-check username exists before reconnecting
-                            console.log("Reconnecting...");
-                            connSock(username, "password");
-                        }
-                    }, 6500);
-                } 
-            };
 
+
+
+        function startLockoutTimer(seconds) {
+            let display = document.getElementById("login-status");
+            let remaining = seconds;
+
+            lockoutTimer = setInterval(() => {
+                if (remaining <= 0) {
+                    clearInterval(lockoutTimer);
+                    display.innerText = "You can now try logging in again.";
+                } else {
+                    display.innerText = `Account locked. Try again in ${remaining} seconds.`;
+                    remaining--;
+                }
+            }, 1000);
         }
 
         // Send message function
@@ -354,20 +378,9 @@
             const message = messageInput.value.trim();
 
             if (message !== "" && currentChatUser) {
-                let chatBox = document.getElementById("chat-box");
-                let messageWrapper = document.createElement("div"); // Wrapper for sent messages
-                messageWrapper.classList.add("message-wrapper", "right");
-
-                let messageContainer = document.createElement("div");
-                messageContainer.classList.add("chat-message", "sent");
-
-                messageContainer.innerText = `You: ${message}`;
-                messageWrapper.appendChild(messageContainer);
-                chatBox.appendChild(messageWrapper);
-                chatBox.scrollTop = chatBox.scrollHeight;
-
                 socket.send(`@${currentChatUser} ${message}`);
                 messageInput.value = "";
+
             } else {
                 alert("Select a user to chat first.");
             }
@@ -389,21 +402,21 @@
 
 
 
-
         function updateUsersList(users) {
             const userContainer = document.getElementById("users-list");
-            userContainer.innerHTML = "";
-            
+            userContainer.innerHTML = "";  
+
             users.forEach(user => {
-                if (user !== username) {  // Don't show the current user in the list
+                if (user.trim() !== "" && user !== username) {  
                     let userElement = document.createElement("div");
                     userElement.innerText = user;
                     userElement.className = "user-item";
-                    userElement.onclick = function() { openChat(user); };
+                    userElement.onclick = function () { openChat(user); };
                     userContainer.appendChild(userElement);
                 }
             });
         }
+
 
 
         function openChat(user) {

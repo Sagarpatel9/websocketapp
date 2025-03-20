@@ -27,16 +27,19 @@ async def chat_client():
                 async def receive_messages():
                     while True:
                         try:
-                            response = await websocket.recv()  # Wait for a message
-                            if "rate limit" in response.lower():
-                                print("Server: Rate limit reached. Slow down!") # Handle rate limit warning
-                            elif "disconnected" in response.lower():
-                                print(f"{response}")  # Handle disconnection messages
+                            response = await websocket.recv()
+                            if response.startswith("USERS:"):
+                                users = response[6:].split(",")
+                                print("\nOnline Users:")
+                                for user in users:
+                                    if user.strip():
+                                        print(f"- {user}")  
+                                print("\n")
                             else:
-                                print(response) # Print normal messages
+                                print(response)  
                         except websockets.exceptions.ConnectionClosed:
-                            print("Disconnected from server. Attempting to reconnect...")
-                            break  # Exit loop on disconnection
+                            print("Disconnected. Attempting to reconnect...")
+                            break  
 
                 # Start receiving messages in the background while user can still type.
                 asyncio.create_task(receive_messages())

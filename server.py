@@ -15,11 +15,107 @@ stored_users = {
 # In-memory storage for chat history (cleared when server restarts)
 chat_storage = {}
 
-
 # Rate limiting
 limitOfMessages = 5  # Maximum number of messages per interval
 rateLimSec = 20  # Time in seconds
 user_message_log = {}  # Tracks user message timestamps for rate limiting
+
+# Define lockout constants
+failed_attempts = {}
+MAX_FAILED_ATTEMPTS = 5
+LOCKOUT_TIME = 20  # 5 minutes
+
+
+
+ 
+
+
+async def handler(websocket):
+    global failed_attempts
+    username = await websocket.recv()
+    password = await websocket.recv()
+
+    # Check if user is locked out
+    if username in failed_attempts and failed_attempts[username]["count"] >= MAX_FAILED_ATTEMPTS:
+        time_since_last_attempt = time.time() - failed_attempts[username]["last_attempt"]
+        if time_since_last_attempt < LOCKOUT_TIME:
+            remaining_time = int(LOCKOUT_TIME - time_since_last_attempt)
+            await websocket.send(f"LOCKOUT:{remaining_time}")
+            await websocket.close()
+            return
+        else:
+            failed_attempts[username]["count"] = 0  # Reset failed attempts after timeout
+
+    # Authentication check
+    if username in stored_users and password == stored_users[username]:
+        failed_attempts[username] = {"count": 0, "last_attempt": time.time()}  
+        connected_users[username] = websocket
+        print(f"{username} has connected.")
+
+        # Send updated user list to all clients
+        await broadcast_users_list()
+
+        await websocket.send("Authentication successful. You can start chatting.")
+        await send_chat_history_from_memory(websocket, username)
+
+        async for message in websocket:
+            if message == "disconnecting":
+                print(f"{username} has disconnected.")
+                break
+
+            if message.startswith("HISTORY_REQUEST:"):
+                target_user = message.split(":")[1]
+                await send_private_chat_history(websocket, username, target_user)
+                continue
+
+            if is_rate_limited(username):
+                await websocket.send("Rate limit exceeded. Please wait before sending more messages.")
+                continue  
+
+            # Private message handling
+            if message.startswith("@"):
+                parts = message.split(" ", 1)
+                if len(parts) > 1:
+                    target_user = parts[0][1:]  
+                    msg_content = parts[1]
+
+                    if target_user in connected_users:
+                        try:
+                            save_message_to_memory(username, target_user, msg_content)  
+                            await connected_users[target_user].send(f"{username}: {msg_content}")
+                            await websocket.send(f"{username}: {msg_content}")
+                        except websockets.exceptions.ConnectionClosed:
+                            del connected_users[target_user]
+                    else:
+                      await websocket.send(f"Error: {target_user} is not online.")
+                else: 
+                    await websocket.send("Invalid message format. Use @username message")
+            else:
+                # Broadcast message to all users
+                for user, conn in connected_users.items():
+                    if user != username:
+                        try:
+                            await conn.send(f"{username}: {message}")
+                        except websockets.exceptions.ConnectionClosed:
+                            del connected_users[user]
+                
+
+    else:
+        # Increment failed attempt count
+        if username not in failed_attempts:
+            failed_attempts[username] = {"count": 1, "last_attempt": time.time()}
+        else:
+            failed_attempts[username]["count"] += 1
+            failed_attempts[username]["last_attempt"] = time.time()
+
+        remaining_attempts = MAX_FAILED_ATTEMPTS - failed_attempts[username]["count"]
+        await websocket.send(f"AUTH_FAILED:{remaining_attempts}")
+        await websocket.close()
+
+    # Remove user on disconnect
+    if username and username in connected_users:
+        del connected_users[username]
+        await broadcast_users_list()
 
 
 # Save messages to in-memory storage
@@ -59,81 +155,27 @@ def is_rate_limited(username):
 
     user_message_log[username].append(current_time)
     return False
-  
+ 
 
 
-async def handler(websocket):
-    username = None  # To prevent errors if user disconnects early
-    try:
-        username = await websocket.recv()
-        password = await websocket.recv()
+# Function to send private chat history between two users
+async def send_private_chat_history(websocket, username, target_user):
+    chat_id = f"{username}_{target_user}" if username < target_user else f"{target_user}_{username}"
 
-        if username in stored_users and password == stored_users[username]:
-            connected_users[username] = websocket
-            print(f"{username} has connected.")
-
-            # Send updated user list to all clients
-            await broadcast_users_list()
-
-            await websocket.send("Authentication successful. You can start chatting.")
-            await send_chat_history_from_memory(websocket, username)  # Load chat history on login
-
-            async for message in websocket:
-                if message == "disconnecting":
-                    print(f"{username} has disconnected.")
-                    break
-
-
-                # Handle chat history request when switching users
-                if message.startswith("HISTORY_REQUEST:"):
-                    target_user = message.split(":")[1]
-                    chat_id = f"{username}_{target_user}" if username < target_user else f"{target_user}_{username}"
-
-                    if chat_id in chat_storage:
-                        for msg in chat_storage[chat_id]:
-                            await websocket.send(msg)
-                    continue
-
-                # Rate-limiting check
-                if is_rate_limited(username):
-                    await websocket.send("Rate limit exceeded. Please wait before sending more messages.")
-                    continue  
-
-                # Handle private messages     
-                if message.startswith("@"):  # Private message format: @user message
-                    parts = message.split(" ", 1)
-                    if len(parts) > 1:
-                        target_user = parts[0][1:]  # Remove '@' from username
-                        msg_content = parts[1]
-
-                        if target_user in connected_users:
-                            try:
-                                save_message_to_memory(username, target_user, msg_content)  # Save chat in memory
-                                await connected_users[target_user].send(f"{username}: {msg_content}")
-                            except websockets.exceptions.ConnectionClosed:
-                                del connected_users[target_user]
-                    else:
-                        await websocket.send("Invalid message format. Use @username message")
-                else:
-                    await websocket.send("To send a message, use @recipient_username message_content.")
-
-        else:
-            await websocket.send("Authentication failed. Invalid username or password.")
-            await websocket.close()
-
-    except websockets.exceptions.ConnectionClosed:
-        print(f"{username} has disconnected.")
-    finally:
-        if username and username in connected_users:
-            del connected_users[username]
-            await broadcast_users_list()
+    if chat_id in chat_storage:
+        for msg in chat_storage[chat_id]:
+            await websocket.send(msg)
 
 
 async def broadcast_users_list():
     """Sends an updated list of connected users to all clients."""
     user_list = ",".join(connected_users.keys())  # Convert list to comma-separated string
-    for user in connected_users.values():
-        await user.send(f"USERS:{user_list}")
+    for user, conn in connected_users.items():
+        try:
+            await conn.send(f"USERS:{user_list}")
+        except websockets.exceptions.ConnectionClosed:
+            continue # Ignore disconnected users
+
 
 
 
