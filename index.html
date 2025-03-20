@@ -212,6 +212,22 @@
         #send-btn:hover {
             background-color: #FF3B3B;
         }
+        
+        #register-container {
+        display: none;
+        }
+        #register-container input {
+        width: 80%;
+        padding: 12px;
+        margin: 10px 0;
+        border-radius: 8px;
+        outline: none;
+        font-size: 16px;
+        text-align: center;
+        }
+
+
+    
 
     </style>
 </head>
@@ -229,8 +245,23 @@
         <input type="text" id="username" placeholder="Enter username">
         <input type="password" id="password" placeholder="Enter password">
         <button onclick="login()">Login</button>
+        <button onclick="showRegister()">Create Account</button>
         <p id="login-status" style="color: red; font-weight: bold;"></p>
     </div>
+
+    <!-- Registration Form -->
+    <div id="register-container" class="container">
+        <h3>Register</h3>
+        <input type="text" id="reg-username" placeholder="Choose a username" />
+        <input type="password" id="reg-password" placeholder="Choose a password" />
+        <button onclick="register()">Register</button>
+        <button onclick="showLogin()">Back to Login</button>
+        <p id="register-status" style="color: red; font-weight: bold;"></p>
+    </div>
+
+
+
+
 
     <!-- Chat Interface -->
     <div id="chat-wrapper">
@@ -263,6 +294,19 @@
         let maxAttempts = 5;
         let lockoutTimer;
 
+        function showRegister() {
+            document.getElementById("login-container").style.display = "none";
+            document.getElementById("register-container").style.display = "block";
+        }
+
+        function showLogin() {
+            document.getElementById("register-container").style.display = "none";
+            document.getElementById("login-container").style.display = "block";
+        }
+
+
+
+
         function login() {
             username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
@@ -272,9 +316,22 @@
                 return;
             }
 
-            connSock(username, password);
+            connectSocket("login", username, password);
+
         }
 
+
+        function register() {
+            const regUsername = document.getElementById("reg-username").value;
+            const regPassword = document.getElementById("reg-password").value;
+
+            if (!regUsername || !regPassword) {
+                document.getElementById("register-status").innerText = "Please enter a username and password.";
+                return;
+            }
+
+            connectSocket("register", regUsername, regPassword);
+        }
 
 
 
@@ -282,12 +339,13 @@
 
 
 
-        function connSock(username, password) {
+        function connectSocket(action, uname, pwd) {
             socket = new WebSocket("ws://localhost:9000");
 
             socket.onopen = function () {
-                socket.send(username);
-                socket.send(password);
+                socket.send(action);
+                socket.send(uname);
+                socket.send(pwd);
             };
 
             socket.onmessage = function (event) {
@@ -300,33 +358,48 @@
                     let usersList = event.data.substring(6).split(",");  
                     updateUsersList(usersList);
                 } else if (event.data === "Authentication successful. You can start chatting.") {
-                    loginStatus.style.color = "green";
-                    loginStatus.innerText = "Login successful! Redirecting...";
+                    document.getElementById("login-status").style.color = "green";
+                    document.getElementById("login-status").innerText = "Login successful! Redirecting...";
                     setTimeout(() => {
                         document.getElementById('login-container').style.display = "none";
                         document.getElementById('chat-wrapper').style.display = "flex";
                     }, 1000);
+                }else if (event.data === "REGISTER_SUCCESS") {
+                    document.getElementById("register-status").style.color = "green";
+                    document.getElementById("register-status").innerText = "Registration successful. You can now log in.";
+                    setTimeout(showLogin, 1500);
+                } else if (event.data.startsWith("REGISTER_FAILED")) {
+                    document.getElementById("register-status").innerText = event.data;
                 } else if (event.data.startsWith("AUTH_FAILED")) {
                     let remaining = parseInt(event.data.split(":")[1], 10);
-                    failedAttempts = maxAttempts - remaining;
-
-                    loginStatus.style.color = "red";
-                    loginStatus.innerText = `Incorrect credentials. Attempts left: ${remaining}`;
-                    passwordField.value = "";  // Reset password field
-
-                    if (remaining <= 0) {
-                        loginStatus.innerText = "Too many failed attempts. You are locked out.";
-                    }
+                    document.getElementById("login-status").innerText = `Incorrect credentials. Attempts left: ${remaining}`;
                 } else if (event.data.startsWith("LOCKOUT")) {
                     let remainingTime = parseInt(event.data.split(":")[1], 10);
-                    loginStatus.style.color = "red";
-                    loginStatus.innerText = `Too many failed attempts. Try again in ${remainingTime} seconds.`;
+                    document.getElementById("login-status").innerText = `Account locked. Try again in ${remainingTime} seconds.`;
                     startLockoutTimer(remainingTime);
                 } else{
                     appendMessage(event.data);
                 }
             };
+
+            socket.onerror = function (error) {
+                console.error("WebSocket Error:", error);
+            };
+
+            socket.onclose = function () {
+                if (document.getElementById("chat-wrapper").style.display === "flex") {
+                    console.warn("WebSocket Disconnected. Attempting to reconnect...");
+                    setTimeout(() => connectSocket(action, uname, pwd), 5000);  // Auto-reconnect only if logged in
+                }
+            };
+
+
+
         }
+
+
+
+
 
         function appendMessage(message) {
             let chatBox = document.getElementById("chat-box");
@@ -390,15 +463,16 @@
 
         // Logout function
         function logout() {
-            if (socket.readyState == WebSocket.OPEN) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
                 socket.send("disconnecting");
                 socket.close();
-                socket = null;
             }
+            socket = null;  // Prevent reconnection
             username = null;  
             document.getElementById('login-container').style.display = "block";
             document.getElementById('chat-wrapper').style.display = "none";
         }
+
 
 
 
@@ -424,10 +498,10 @@
         document.getElementById("chat-title").innerText = `Chat with ${user}`;
         document.getElementById("chat-box").innerHTML = "";
 
-        // Request chat history from the server
-        if (socket.readyState === WebSocket.OPEN) {
-            socket.send(`HISTORY_REQUEST:${user}`);
-        }
+            // Request chat history from the server
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(`HISTORY_REQUEST:${user}`);
+            }
     }
 
 

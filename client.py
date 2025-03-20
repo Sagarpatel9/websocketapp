@@ -8,6 +8,7 @@ async def chat_client():
         try:
             #establish connection with the websocket server
             async with websockets.connect(uri) as websocket:
+                action = await asyncio.to_thread(input, "Do you want to (login/register)? ").strip().lower()
                 username = await asyncio.to_thread(input, "Enter username: ")
                 password = await asyncio.to_thread(input, "Enter password: ")
                 
