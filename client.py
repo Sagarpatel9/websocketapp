@@ -1,5 +1,7 @@
 import asyncio
 import websockets
+import json
+import base64
 
 async def chat_client():
     uri = "ws://localhost:9000"
@@ -28,6 +30,21 @@ async def chat_client():
                 async def receive_messages():
                     while True:
                         try:
+                            # Sees if there's a file
+                            try:
+                                fileMessage = json.loads(response)  # JSON parse
+                                if fileMessage["type"] == "file":
+                                    file_name = fileMessage["name"]
+                                    file_data = base64.b64decode(fileMessage["data"])
+               
+                                    with open(file_name, "wb") as file:
+                                        file.write(file_data)
+               
+                                    print(f"File has been received: {file_name}")
+                                    continue  
+                            except json.JSONDecodeError:
+                                pass  # Pass because not a file
+
                             response = await websocket.recv()
                             if response.startswith("USERS:"):
                                 users = response[6:].split(",")
@@ -53,6 +70,15 @@ async def chat_client():
                         await websocket.send("disconnecting")
                         await websocket.close()
                         return
+                    nameFile = message.split("", 1)[1]
+                    try:
+                        with open(nameFile, "rb") as file:
+                            fileInfo = file.read()
+                            await websocket.send(fileInfo)
+                            print(f"{nameFile} has been sent.")
+                    except Exception as error:
+                        print(f"Error: {error}")
+                    continue
                     await websocket.send(message)
 
         except Exception as e:

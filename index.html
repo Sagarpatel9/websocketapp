@@ -226,6 +226,30 @@
         text-align: center;
         }
 
+        #file-box {
+             display: flex;
+             justify-content: center;
+             align-items: center;
+             margin: 20px auto;
+             width: 66%; /* container width */
+             height: 60px;
+             border-radius: 8px;
+             padding: 10px;
+         }
+ 
+         #file-btn {
+             width: 120px;
+             padding: 12px;
+             font-size: 16px;
+             border-radius: 8px;
+             border: none;
+             background-color: #FFD166;
+             cursor: pointer;
+         }
+ 
+         #file-btn:hover {
+             background-color: #ffb347;
+         }
 
     
 
@@ -281,6 +305,10 @@
                 <input type="text" id="message-input" placeholder="Type a message...">
                 <button id="send-btn">Send</button>
             </div>
+            <div id="file-box">
+                <input type="file" id="file-input">
+                <button id="file-btn" onclick="shareFile()">Share file</button>
+            </div>
         </div>
     </div>
     
@@ -335,7 +363,57 @@
 
 
 
-        
+        function shareFile() {
+                let fileInput = document.getElementById("file-input");
+                let file = fileInput.files[0];
+
+
+                if (!file) {
+                    alert("Please choose a file.");
+                    return;
+                }
+
+
+                let reader = new FileReader();
+                reader.readAsDataURL(file); 
+
+
+                reader.onload = function(event) {
+                    let fileData = event.target.result.split(',')[1]; 
+                    let fileName = file.name;
+
+
+                    let fileMessage = JSON.stringify({
+                        type: "file",
+                        name: fileName,
+                        data: fileData 
+                    });
+
+
+                    socket.send(fileMessage);
+
+
+                    // Download link appears on sender's side
+                    let chatBox = document.getElementById("chat-box");
+                    let link = document.createElement("a");
+                    link.href = event.target.result; // Base64 URL used
+                    link.download = fileName; // Set download filename
+                    link.textContent = `You have sent a file: ${fileName}`;
+                    link.style.color = "blue";
+                    link.style.textDecoration = "underline";
+
+
+                    chatBox.appendChild(link);
+                    chatBox.appendChild(document.createElement("br"));
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                };
+
+
+                reader.onerror = function() {
+                    alert("There has been an error with the file.");
+                };
+            }
+
 
 
 

@@ -3,6 +3,8 @@ import websockets
 import time
 import signal
 import sys
+import json
+import base64
 import os
 
 
@@ -220,6 +222,35 @@ async def tellClients(message):
             await conn["websocket"].send(message)
         except websockets.exceptions.ConnectionClosed:
             continue  # Clients no longer connected are ignored.
+
+async def fileTransfer(username, message):
+    try:
+        filejson = json.loads(message.decode())  # bytes decoded to json
+        fileName = filejson["name"]
+        fileData = base64.b64decode(filejson["data"])  
+
+
+
+        with open(fileName, "wb") as file:
+            file.write(fileData)
+
+
+        print(f"{username} has sent file: {fileName}")
+
+
+        # Notify all users and send file data
+        for user, conn in connected_users.items():
+            if user != username:  # File doesn't get sent to sender
+                try:
+                    await conn["websocket"].send(json.dumps({
+                        "type": "file",
+                        "name": fileName,
+                        "data": filejson["data"]  # Base64 data sent
+                    }))
+                except websockets.exceptions.ConnectionClosed:
+                    continue
+    except Exception as e:
+        print(f"File error: {e}")
 
 
 # Graceful server shutdown
