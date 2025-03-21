@@ -531,6 +531,8 @@
         // Send message function
         let bold = false;
         let italic = false;
+        let underline = false;
+        let strikethru = false;
         document.getElementById("message-input").addEventListener("keydown", function (event) {
         if (event.ctrlKey && event.key.toLowerCase() === "b") {
             event.preventDefault();
@@ -539,6 +541,14 @@
         if (event.ctrlKey && event.key.toLowerCase() === "i") {
             event.preventDefault();
             italic = true;
+        }
+        if (event.ctrlKey && event.key.toLowerCase() === "u") {
+            event.preventDefault();
+            underline = true;
+        }
+        if (event.ctrlKey && event.key.toLowerCase() === "x") {
+            event.preventDefault();
+            strikethru = true;
         }
     });
         document.getElementById("send-btn").addEventListener("click", function() {
@@ -552,6 +562,12 @@
                 if (italic) {
                     message = `<i>${message}</i>`;
             }
+                if (underline) {
+                    message = `<u>${message}</u>`;
+            }
+                if (strikethru) {
+                    message = `<s>${message}</s>`;
+                }
 
             if (message !== "" && currentChatUser) {
                 socket.send(`@${currentChatUser} ${message}`);
@@ -559,6 +575,8 @@
 
             bold = false;
             italic = false;
+            underline = false;
+            strikethru = false;
 
             } else {
                 alert("Select a user to chat first.");
