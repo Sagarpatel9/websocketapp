@@ -497,7 +497,7 @@
             let messageContainer = document.createElement("div");
             messageContainer.classList.add("chat-message", sender === username ? "sent" : "received");
 
-            messageContainer.innerText = text;
+            messageContainer.innerHTML = text;
             messageWrapper.appendChild(messageContainer);
             chatBox.appendChild(messageWrapper);
             chatBox.scrollTop = chatBox.scrollHeight;
@@ -524,18 +524,41 @@
         }
 
         // Send message function
+        let bold = false;
+        let italic = false;
+        document.getElementById("message-input").addEventListener("keydown", function (event) {
+        if (event.ctrlKey && event.key.toLowerCase() === "b") {
+            event.preventDefault();
+            bold = true;
+        }
+        if (event.ctrlKey && event.key.toLowerCase() === "i") {
+            event.preventDefault();
+            italic = true;
+        }
+    });
         document.getElementById("send-btn").addEventListener("click", function() {
-            const messageInput = document.getElementById("message-input");
-            const message = messageInput.value.trim();
+            const msgInput = document.getElementById("message-input");
+            let message = msgInput.value.trim();
+
+            if (message !== "" && currentChatUser) {
+                if (bold) {
+                    message = `<b>${message}</b>`;
+            }
+                if (italic) {
+                    message = `<i>${message}</i>`;
+            }
 
             if (message !== "" && currentChatUser) {
                 socket.send(`@${currentChatUser} ${message}`);
-                messageInput.value = "";
+                msgInput.value = "";
+
+            bold = false;
+            italic = false;
 
             } else {
                 alert("Select a user to chat first.");
             }
-        });
+        }});
 
 
 
