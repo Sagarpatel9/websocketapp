@@ -497,6 +497,11 @@
             let messageContainer = document.createElement("div");
             messageContainer.classList.add("chat-message", sender === username ? "sent" : "received");
 
+            text = text.replace(
+                /(https?:\/\/[^\s]+)/g,
+                '<a href="$1" style="color:light_blue;">$1</a>'
+            );
+
             messageContainer.innerHTML = text;
             messageWrapper.appendChild(messageContainer);
             chatBox.appendChild(messageWrapper);
