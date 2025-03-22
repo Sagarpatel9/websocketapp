@@ -368,52 +368,61 @@
                 let fileInput = document.getElementById("file-input");
                 let file = fileInput.files[0];
 
-
                 if (!file) {
-                    alert("Please choose a file.");
-                    return;
+                        alert("Please choose a file.");
+                        return;
                 }
-
 
                 let reader = new FileReader();
                 reader.readAsDataURL(file); 
 
-
                 reader.onload = function(event) {
-                    let fileData = event.target.result.split(',')[1]; 
-                    let fileName = file.name;
+                        let fileData = event.target.result.split(',')[1]; 
+                        let fileName = file.name;
 
+                        // Create the file message object
+                        let fileMessage = {
+                                type: "file",
+                                name: fileName,
+                                data: fileData 
+                        };
 
-                    let fileMessage = JSON.stringify({
-                        type: "file",
-                        name: fileName,
-                        data: fileData 
-                    });
+                        // Convert to string and encrypt the entire message
+                        let encryptedFileMessage = encMsg(JSON.stringify(fileMessage));
 
+                        // Send to the proper recipient with the @username format
+                        if (currentChatUser) {
+                                socket.send(`@${currentChatUser} ${encryptedFileMessage}`);
 
-                    socket.send(fileMessage);
+                                // Display on sender's side
+                                let chatBox = document.getElementById("chat-box");
+                                let messageWrapper = document.createElement("div");
+                                messageWrapper.classList.add("message-wrapper", "right");
 
+                                let messageContainer = document.createElement("div");
+                                messageContainer.classList.add("chat-message", "sent");
 
-                    // Download link appears on sender's side
-                    let chatBox = document.getElementById("chat-box");
-                    let link = document.createElement("a");
-                    link.href = event.target.result; // Base64 URL used
-                    link.download = fileName; // Set download filename
-                    link.textContent = `You have sent a file: ${fileName}`;
-                    link.style.color = "blue";
-                    link.style.textDecoration = "underline";
+                                let link = document.createElement("a");
+                                link.href = event.target.result;
+                                link.download = fileName;
+                                link.style.color = "blue";
+                                link.style.textDecoration = "underline";
 
-
-                    chatBox.appendChild(link);
-                    chatBox.appendChild(document.createElement("br"));
-                    chatBox.scrollTop = chatBox.scrollHeight;
+                                messageContainer.appendChild(link);
+                                messageWrapper.appendChild(messageContainer);
+                                chatBox.appendChild(messageWrapper);
+                                chatBox.scrollTop = chatBox.scrollHeight;
+                        } else {
+                                alert("Select a user to chat first.");
+                        }
                 };
-
 
                 reader.onerror = function() {
-                    alert("There has been an error with the file.");
+                        alert("There has been an error with the file.");
                 };
-            }
+        }
+
+
 
         function encMsg(message) {
             let encrypted = CryptoJS.AES.encrypt(message, CryptoJS.enc.Hex.parse(key), {
@@ -452,19 +461,31 @@
                 let loginStatus = document.getElementById("login-status");
                 let passwordField = document.getElementById("password");
 
+                try {
+                    let data = JSON.parse(event.data);
 
+                    if (data.type === "file") {
+                        if (data.receiver === username) {
+                            receiveFile(data);
+                        }
+                        return; 
+                    }
+                } catch (error) {
+                    // If JSON parsing fails, assume it's a normal text message
+                }
 
+                // Handle text-based system messages
                 if (event.data.startsWith("USERS:")) {
-                    let usersList = event.data.substring(6).split(",");  
+                    let usersList = event.data.substring(6).split(",");
                     updateUsersList(usersList);
                 } else if (event.data === "Authentication successful. You can start chatting.") {
                     document.getElementById("login-status").style.color = "green";
                     document.getElementById("login-status").innerText = "Login successful! Redirecting...";
                     setTimeout(() => {
-                        document.getElementById('login-container').style.display = "none";
-                        document.getElementById('chat-wrapper').style.display = "flex";
+                        document.getElementById("login-container").style.display = "none";
+                        document.getElementById("chat-wrapper").style.display = "flex";
                     }, 1000);
-                }else if (event.data === "REGISTER_SUCCESS") {
+                } else if (event.data === "REGISTER_SUCCESS") {
                     document.getElementById("register-status").style.color = "green";
                     document.getElementById("register-status").innerText = "Registration successful. You can now log in.";
                     setTimeout(showLogin, 1500);
@@ -477,10 +498,11 @@
                     let remainingTime = parseInt(event.data.split(":")[1], 10);
                     document.getElementById("login-status").innerText = `Account locked. Try again in ${remainingTime} seconds.`;
                     startLockoutTimer(remainingTime);
-                } else{
-                    appendMessage(event.data);
+                } else {
+                    appendMessage(event.data); // Handle encrypted text messages
                 }
             };
+
 
             socket.onerror = function (error) {
                 console.error("WebSocket Error:", error);
@@ -497,6 +519,20 @@
 
         }
 
+        function receiveFile(fileData) {
+            let chatBox = document.getElementById("chat-box");
+            let link = document.createElement("a");
+            link.href = "data:application/octet-stream;base64," + fileData.data;        
+            link.download = fileData.name;
+            link.textContent = `Received a file: ${fileData.name}`;
+            link.style.color = "blue";
+            link.style.textDecoration = "underline";
+
+            chatBox.appendChild(link);
+            chatBox.appendChild(document.createElement("br"));
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
 
 
 
@@ -507,28 +543,66 @@
 
             let sender = message.split(":")[0].trim();
             let encryptedText = message.split(":").slice(1).join(":").trim();
-            let decryptedText = decMsg(encryptedText);
+            let decryptedText;
+    
+            try {
+                decryptedText = decMsg(encryptedText);
+        
+                // Check if this is a file message 
+                if (decryptedText.startsWith("{") && decryptedText.includes('"type":"file"')) {
+                    let fileObj = JSON.parse(decryptedText);
+            
+                    if (fileObj.type === "file") {
+                        // Create download link for file
+                        if (sender === username) {
+                            messageWrapper.classList.add("message-wrapper", "right");
+                        } else {
+                            messageWrapper.classList.add("message-wrapper", "left");
+                        }
+                
+                        let messageContainer = document.createElement("div");
+                        messageContainer.classList.add("chat-message", sender === username ? "sent" : "received");
+                
+                        let link = document.createElement("a");
+                        link.href = "data:application/octet-stream;base64," + fileObj.data;
+                        link.download = fileObj.name;
+                        link.textContent = `${sender === username ? "You" : sender} sent a file: ${fileObj.name}`;
+                        link.style.color = "blue";
+                        link.style.textDecoration = "underline";
+                
+                        messageContainer.appendChild(link);
+                        messageWrapper.appendChild(messageContainer);
+                        chatBox.appendChild(messageWrapper);
+                        chatBox.scrollTop = chatBox.scrollHeight;
+                        return;
+                    }
+                }
+        
+                // Handle regular text messages
+                if (sender === username) {
+                    messageWrapper.classList.add("message-wrapper", "right");
+                    decryptedText = "You: " + decryptedText;
+                } else {
+                    messageWrapper.classList.add("message-wrapper", "left");
+                }
 
-            if (sender === username) {
-                messageWrapper.classList.add("message-wrapper", "right");
-                decryptedText = "You: " + decryptedText;
-            } else {
-                messageWrapper.classList.add("message-wrapper", "left");
+                let messageContainer = document.createElement("div");
+                messageContainer.classList.add("chat-message", sender === username ? "sent" : "received");
+        
+                // Replace URLs with clickable links
+                decryptedText = decryptedText.replace(
+                    /(https?:\/\/[^\s]+)/g,
+                    '<a href="$1" style="color:blue;">$1</a>'
+                );
+
+                messageContainer.innerHTML = decryptedText;
+                messageWrapper.appendChild(messageContainer);
+                chatBox.appendChild(messageWrapper);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            } catch (error) {
+                console.error("Error decrypting message:", error);
+                // Handle error (perhaps display an error message)
             }
-
-            let messageContainer = document.createElement("div");
-            messageContainer.classList.add("chat-message", sender === username ? "sent" : "received");
-            messageContainer.innerText = decryptedText;
-
-            decryptedText = decryptedText.replace(
-                /(https?:\/\/[^\s]+)/g,
-                '<a href="$1" style="color:light_blue;">$1</a>'
-            );
-
-            messageContainer.innerHTML = decryptedText;
-            messageWrapper.appendChild(messageContainer);
-            chatBox.appendChild(messageWrapper);
-            chatBox.scrollTop = chatBox.scrollHeight;
         }
 
 
