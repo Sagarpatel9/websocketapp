@@ -123,8 +123,9 @@ async def handler(websocket):
                 await send_private_chat_history(websocket, username, target_user)
                 continue
 
-        if is_rate_limited(username):
-            await websocket.send("Rate limit exceeded. Please wait before sending more messages.")
+            if is_rate_limited(username):
+                await websocket.send("Rate limit exceeded. Please wait before sending more messages.")
+                continue
             
 
 
