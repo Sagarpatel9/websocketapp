@@ -339,7 +339,7 @@
                 return;
             }
 
-            connectSocket("login", username, password);
+            socket = connectSocket("login", username, password);
 
         }
 
@@ -352,7 +352,7 @@
                 return;
             }
 
-            connectSocket("register", regUsername, regPassword);
+            socket = connectSocket("register", regUsername, regPassword);
         }
 
         function shareFile() {
@@ -432,15 +432,15 @@
         }
 
         function connectSocket(action, uname, pwd) {
-            socket = new WebSocket("ws://localhost:9000");
+            const newSocket = new WebSocket("ws://localhost:9000");
 
-            socket.onopen = function () {
-                socket.send(action);
-                socket.send(uname);
-                socket.send(pwd);
+            newSocket.onopen = function () {
+                newSocket.send(action);
+                newSocket.send(uname);
+                newSocket.send(pwd);
             };
 
-            socket.onmessage = function (event) {
+            newSocket.onmessage = function (event) {
                 let loginStatus = document.getElementById("login-status");
                 let passwordField = document.getElementById("password");
 
@@ -471,7 +471,7 @@
                 } else if (event.data === "REGISTER_SUCCESS") {
                     document.getElementById("register-status").style.color = "green";
                     document.getElementById("register-status").innerText = "Registration successful. You can now log in.";
-                    setTimeout(showLogin, 1500);
+                    setTimeout(showLogin, 4000);
                 } else if (event.data.startsWith("REGISTER_FAILED")) {
                     document.getElementById("register-status").innerText = event.data;
                 } else if (event.data.startsWith("AUTH_FAILED")) {
@@ -486,16 +486,27 @@
                 }
             };
 
-            socket.onerror = function (error) {
+            newSocket.onerror = function (error) {
                 console.error("WebSocket Error:", error);
             };
 
-            socket.onclose = function () {
+            /*newSocket.onclose = function () {
                 if (document.getElementById("chat-wrapper").style.display === "flex") {
                     console.warn("WebSocket Disconnected. Attempting to reconnect...");
                     setTimeout(() => connectSocket(action, uname, pwd), 5000);  // Auto-reconnect only if logged in
                 }
+            };*/
+            
+            newSocket.onclose = function () {
+                console.warn("WebSocket Disconnected.");  // No reconnect attempt
             };
+
+
+
+            return newSocket;
+
+
+
         }
 
         function receiveFile(fileData) {
