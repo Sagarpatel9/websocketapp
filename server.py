@@ -47,8 +47,6 @@ def save_user(username, password):
         file.write(f"{username} {hashed_pw.decode()}\n")
 
  
-
-
 async def handler(websocket):
     global failed_attempts
     stored_users = load_users()
@@ -125,9 +123,9 @@ async def handler(websocket):
                 await send_private_chat_history(websocket, username, target_user)
                 continue
 
-            if is_rate_limited(username):
-                await websocket.send("Rate limit exceeded. Please wait before sending more messages.")
-                continue  
+        if is_rate_limited(username):
+            await websocket.send("Rate limit exceeded. Please wait before sending more messages.")
+            continue  
 
 
 
@@ -174,7 +172,6 @@ async def handler(websocket):
 
 
 
-
 # Save messages to in-memory storage
 def save_message_to_memory(sender, receiver, message):
     chat_id = f"{sender}_{receiver}" if sender < receiver else f"{receiver}_{sender}"
@@ -190,8 +187,6 @@ async def send_chat_history_from_memory(websocket, username):
         if username in chat_id:
             for msg in messages:
                 await websocket.send(msg)
-
-
 
 
 # Rate-limiting function
@@ -214,7 +209,6 @@ def is_rate_limited(username):
     return False
  
 
-
 # Function to send private chat history between two users
 async def send_private_chat_history(websocket, username, target_user):
     chat_id = f"{username}_{target_user}" if username < target_user else f"{target_user}_{username}"
@@ -235,8 +229,6 @@ async def broadcast_users_list():
 
 
 
-
-
 async def tellClients(message):
     # Sends a message to all clients notifying them what occurred.
     for user, conn in connected_users.items():
@@ -251,14 +243,10 @@ async def fileTransfer(username, message):
         fileName = filejson["name"]
         fileData = base64.b64decode(filejson["data"])  
 
-
-
         with open(fileName, "wb") as file:
             file.write(fileData)
 
-
         print(f"{username} has sent file: {fileName}")
-
 
         # Notify all users and send file data
         for user, conn in connected_users.items():
