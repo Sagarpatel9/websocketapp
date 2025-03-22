@@ -125,7 +125,7 @@ async def handler(websocket):
 
         if is_rate_limited(username):
             await websocket.send("Rate limit exceeded. Please wait before sending more messages.")
-            continue  
+            
 
 
 
