@@ -76,7 +76,6 @@
             padding: 20px; /* Adds extra space inside */
         }
 
-
         #users-container {
             width: 30%;
             height: 95%;
@@ -89,8 +88,6 @@
             align-items: center;
             border: 4px solid lightgrey; /* Adds a separator between users and chat */
         }
-
-
 
         #users-container h3 {
             margin-bottom: 10px;
@@ -177,7 +174,6 @@
             text-align: left;
         }
 
-
         /* Chat Input */
         #chat-input {
             display: flex;
@@ -251,8 +247,6 @@
              background-color: #FF3B3B;
          }
 
-    
-
     </style>
 </head>
 
@@ -282,10 +276,6 @@
         <button onclick="showLogin()">Back to Login</button>
         <p id="register-status" style="color: red; font-weight: bold;"></p>
     </div>
-
-
-
-
 
     <!-- Chat Interface -->
     <div id="chat-wrapper">
@@ -321,7 +311,14 @@
         let failedAttempts = 0;
         let maxAttempts = 5;
         let lockoutTimer;
-        const key = "4f8b7d12a9e4c3f5b6a8c7d9e0b2f3d1e5a7c9f2b4d6e8a0c2f4d1b3a5c7e9f0"
+        let key;
+
+        fetch("key.txt")
+            .then(response => response.text())
+            .then(info => {
+                key = info.trim();
+            })
+            .catch(error => console.error("Error with file:", error));
 
         function showRegister() {
             document.getElementById("login-container").style.display = "none";
@@ -332,9 +329,6 @@
             document.getElementById("register-container").style.display = "none";
             document.getElementById("login-container").style.display = "block";
         }
-
-
-
 
         function login() {
             username = document.getElementById('username').value;
@@ -349,7 +343,6 @@
 
         }
 
-
         function register() {
             const regUsername = document.getElementById("reg-username").value;
             const regPassword = document.getElementById("reg-password").value;
@@ -361,8 +354,6 @@
 
             connectSocket("register", regUsername, regPassword);
         }
-
-
 
         function shareFile() {
                 let fileInput = document.getElementById("file-input");
@@ -422,8 +413,6 @@
                 };
         }
 
-
-
         function encMsg(message) {
             let encrypted = CryptoJS.AES.encrypt(message, CryptoJS.enc.Hex.parse(key), {
                 mode: CryptoJS.mode.ECB,
@@ -433,8 +422,6 @@
             return encrypted.toString();  
         }
 
-
-
         function decMsg(encryptedMessage) {
             let decrypted = CryptoJS.AES.decrypt(encryptedMessage, CryptoJS.enc.Hex.parse(key), {
                 mode: CryptoJS.mode.ECB,
@@ -443,10 +430,6 @@
 
             return decrypted.toString(CryptoJS.enc.Utf8);  
         }
-
-
-
-
 
         function connectSocket(action, uname, pwd) {
             socket = new WebSocket("ws://localhost:9000");
@@ -503,7 +486,6 @@
                 }
             };
 
-
             socket.onerror = function (error) {
                 console.error("WebSocket Error:", error);
             };
@@ -514,9 +496,6 @@
                     setTimeout(() => connectSocket(action, uname, pwd), 5000);  // Auto-reconnect only if logged in
                 }
             };
-
-
-
         }
 
         function receiveFile(fileData) {
@@ -532,10 +511,6 @@
             chatBox.appendChild(document.createElement("br"));
             chatBox.scrollTop = chatBox.scrollHeight;
         }
-
-
-
-
 
         function appendMessage(message) {
             let chatBox = document.getElementById("chat-box");
@@ -604,11 +579,6 @@
                 // Handle error (perhaps display an error message)
             }
         }
-
-
-
-
-
 
         function startLockoutTimer(seconds) {
             let display = document.getElementById("login-status");
@@ -681,8 +651,6 @@
             }
         }});
 
-
-
         // Logout function
         function logout() {
             if (socket && socket.readyState === WebSocket.OPEN) {
@@ -694,9 +662,6 @@
             document.getElementById('login-container').style.display = "block";
             document.getElementById('chat-wrapper').style.display = "none";
         }
-
-
-
 
         function updateUsersList(users) {
             const userContainer = document.getElementById("users-list");
@@ -713,8 +678,6 @@
             });
         }
 
-
-
         function openChat(user) {
         currentChatUser = user;
         document.getElementById("chat-title").innerText = `Chat with ${user}`;
@@ -725,10 +688,7 @@
                 socket.send(`HISTORY_REQUEST:${user}`);
             }
     }
-
-
-
-
+    
     </script>
 </body>
 </html>
