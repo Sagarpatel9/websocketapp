@@ -243,12 +243,12 @@
              font-size: 16px;
              border-radius: 8px;
              border: none;
-             background-color: #FFD166;
+             background-color: #FF6B6B;
              cursor: pointer;
          }
  
          #file-btn:hover {
-             background-color: #ffb347;
+             background-color: #FF3B3B;
          }
 
     
@@ -313,7 +313,7 @@
     </div>
     
     
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script>
         let socket;
         let username;
@@ -321,6 +321,7 @@
         let failedAttempts = 0;
         let maxAttempts = 5;
         let lockoutTimer;
+        const key = "4f8b7d12a9e4c3f5b6a8c7d9e0b2f3d1e5a7c9f2b4d6e8a0c2f4d1b3a5c7e9f0"
 
         function showRegister() {
             document.getElementById("login-container").style.display = "none";
@@ -414,6 +415,27 @@
                 };
             }
 
+        function encMsg(message) {
+            let encrypted = CryptoJS.AES.encrypt(message, CryptoJS.enc.Hex.parse(key), {
+                mode: CryptoJS.mode.ECB,
+                padding: CryptoJS.pad.Pkcs7
+            });
+
+            return encrypted.toString();  
+        }
+
+
+
+        function decMsg(encryptedMessage) {
+            let decrypted = CryptoJS.AES.decrypt(encryptedMessage, CryptoJS.enc.Hex.parse(key), {
+                mode: CryptoJS.mode.ECB,
+                padding: CryptoJS.pad.Pkcs7
+            });
+
+            return decrypted.toString(CryptoJS.enc.Utf8);  
+        }
+
+
 
 
 
@@ -484,25 +506,26 @@
             let messageWrapper = document.createElement("div");
 
             let sender = message.split(":")[0].trim();
-            let text = message.split(":").slice(1).join(":").trim();
-        
+            let encryptedText = message.split(":").slice(1).join(":").trim();
+            let decryptedText = decMsg(encryptedText);
 
             if (sender === username) {
                 messageWrapper.classList.add("message-wrapper", "right");
-                text = "You: " + text;
+                decryptedText = "You: " + decryptedText;
             } else {
                 messageWrapper.classList.add("message-wrapper", "left");
             }
 
             let messageContainer = document.createElement("div");
             messageContainer.classList.add("chat-message", sender === username ? "sent" : "received");
+            messageContainer.innerText = decryptedText;
 
-            text = text.replace(
+            decryptedText = decryptedText.replace(
                 /(https?:\/\/[^\s]+)/g,
                 '<a href="$1" style="color:light_blue;">$1</a>'
             );
 
-            messageContainer.innerHTML = text;
+            messageContainer.innerHTML = decryptedText;
             messageWrapper.appendChild(messageContainer);
             chatBox.appendChild(messageWrapper);
             chatBox.scrollTop = chatBox.scrollHeight;
@@ -570,7 +593,8 @@
                 }
 
             if (message !== "" && currentChatUser) {
-                socket.send(`@${currentChatUser} ${message}`);
+                let encryptedMessage = encMsg(message);
+                socket.send(`@${currentChatUser} ${encryptedMessage}`);
                 msgInput.value = "";
 
             bold = false;
