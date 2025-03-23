@@ -1,0 +1,4 @@
+2025-03-22 16:44:07,470 - INFO - server listening on 127.0.0.1:9000
+2025-03-22 16:44:07,471 - INFO - server listening on [::1]:9000
+2025-03-22 16:44:17,987 - INFO - connection open
+2025-03-22 16:44:40,391 - INFO - connection open
