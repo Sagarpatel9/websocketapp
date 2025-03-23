@@ -438,7 +438,7 @@
         }
 
         function connectSocket(action, uname, pwd) {
-            const newSocket = new WebSocket("ws://localhost:9000");
+            const newSocket = new WebSocket("wss://7366-71-95-30-202.ngrok-free.app");
 
             newSocket.onopen = function () {
                 newSocket.send(action);
