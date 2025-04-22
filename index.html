@@ -438,7 +438,7 @@
         }
 
         function connectSocket(action, uname, pwd) {
-            const newSocket = new WebSocket("wss://7366-71-95-30-202.ngrok-free.app");
+            const newSocket = new WebSocket("ws://localhost:9000");
 
             newSocket.onopen = function () {
                 newSocket.send(action);
@@ -530,12 +530,17 @@
         }
 
         function appendMessage(message) {
+            if (!message.includes(":")) {
+                console.warn("Non-standard message received:", message);
+                return; // Don't process messages that don't follow the "username: encryptedText" format
+            }
+
             let chatBox = document.getElementById("chat-box");
             let messageWrapper = document.createElement("div");
 
             let sender = message.split(":")[0].trim();
             let encryptedText = message.split(":").slice(1).join(":").trim();
-            let decryptedText;
+            let decryptedText = decMsg(encryptedText);
     
             try {
                 decryptedText = decMsg(encryptedText);
@@ -592,7 +597,7 @@
                 chatBox.appendChild(messageWrapper);
                 chatBox.scrollTop = chatBox.scrollHeight;
             } catch (error) {
-                console.error("Error decrypting message:", error);
+                console.error("Error parsing or decrypting message:", error, message);
                 // Handle error (perhaps display an error message)
             }
         }
@@ -721,6 +726,9 @@
             }
     }
     
+
     </script>
+
+
 </body>
 </html>
