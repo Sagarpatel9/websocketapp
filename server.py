@@ -7,14 +7,24 @@ import json
 import base64
 import os
 import bcrypt
+import datetime
+
+
 
 
 USER_DB_FILE = "users.txt"
+LOG_FOLDER = "wss_logs"
+
+
+if not os.path.exists(LOG_FOLDER):
+    os.makedirs(LOG_FOLDER)
+
 
 
 connected_users = {}
 # In-memory storage for chat history (cleared when server restarts)
 chat_storage = {}
+
 
 
 # Rate limiting
@@ -23,11 +33,12 @@ rateLimSec = 20  # Time in seconds
 user_message_log = {}  # Tracks user message timestamps for rate limiting
 
 
+
+
 # Define lockout constants
 failed_attempts = {}
 MAX_FAILED_ATTEMPTS = 5
 LOCKOUT_TIME = 20  # 5 minutes
-
 
 
 
@@ -47,6 +58,21 @@ def load_users():
 
 
 
+def new_log():
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    logFile = os.path.join(LOG_FOLDER, f"chat-{timestamp}.txt")
+    return logFile
+
+
+
+
+def msgRec(logFile, sender, message):
+   
+    with open(logFile, 'a') as file:
+        file.write(f'{sender} -> {message}\n')
+
+
+
 # Save new user to file
 def save_user(username, password):
     hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
@@ -54,11 +80,10 @@ def save_user(username, password):
         file.write(f"{username} {hashed_pw.decode()}\n")
 
 
- 
+
 async def handler(websocket):
     global failed_attempts
     stored_users = load_users()
-
 
     action = await websocket.recv()
      
@@ -80,8 +105,6 @@ async def handler(websocket):
         password = await websocket.recv()
 
 
-
-
         # Check if user is locked out
         if username in failed_attempts and failed_attempts[username]["count"] >= MAX_FAILED_ATTEMPTS:
             time_since_last_attempt = time.time() - failed_attempts[username]["last_attempt"]
@@ -93,13 +116,13 @@ async def handler(websocket):
             else:
                 failed_attempts[username]["count"] = 0  # Reset failed attempts after timeout
 
-
        
     # Authentication check using bcrypt
     if username in stored_users:
         stored_hashed_pw = stored_users[username].encode()
         if bcrypt.checkpw(password.encode(), stored_hashed_pw):
             failed_attempts[username] = {"count": 0, "last_attempt": time.time()}  
+
 
 
             if username not in connected_users:
@@ -131,13 +154,16 @@ async def handler(websocket):
             return
 
 
-
-
     try:
+        msgList = []
+
+
         async for message in websocket:
             if message == "disconnecting":
                 print(f"{username} has disconnected.")
                 break
+
+
 
 
             if message.startswith("HISTORY_REQUEST:"):
@@ -150,13 +176,16 @@ async def handler(websocket):
                 await websocket.send("Rate limit exceeded. Please wait before sending more messages.")
                 continue
            
-
             # Private message handling
             if message.startswith("@"):
                 parts = message.split(" ", 1)
                 if len(parts) > 1:
                     target_user = parts[0][1:]  
                     msg_content = parts[1]
+
+
+                    msgTime = time.time()
+                    msgList.append((username, message, msgTime))
 
 
                     if target_user in connected_users:
@@ -174,6 +203,9 @@ async def handler(websocket):
                 else:
                     await websocket.send("Invalid message format. Use @username message")
             else:
+
+
+               
                 # Broadcast message to all users
                 for user, conn in connected_users.items():
                     if user != username:
@@ -192,16 +224,17 @@ async def handler(websocket):
             if not connected_users[username]:
                 del connected_users[username]
             await broadcast_users_list()
+    sessionLog = new_log()
+    orderedList = sorted(msgList, key=lambda x: x[2])
+    for sender, msg, _ in orderedList:
+        msgRec(sessionLog, sender, msg)
 
 
-# Save messages to in-memory storage
-def save_message_to_memory(sender, receiver, message):
+def save_message_to_memory(sender, receiver, message, session_log_file=None):
     chat_id = f"{sender}_{receiver}" if sender < receiver else f"{receiver}_{sender}"
-
 
     if chat_id not in chat_storage:
         chat_storage[chat_id] = []  # Initialize chat storage for this conversation
-
 
     chat_storage[chat_id].append(f"{sender}: {message}")  # Store message in memory
 
@@ -212,9 +245,6 @@ async def send_chat_history_from_memory(websocket, username):
         if username in chat_id:
             for msg in messages:
                 await websocket.send(msg)
-
-
-
 
 # Rate-limiting function
 def is_rate_limited(username):
@@ -238,8 +268,6 @@ def is_rate_limited(username):
     user_message_log[username].append(current_time)
     return False
  
-
-
 # Function to send private chat history between two users
 async def send_private_chat_history(websocket, username, target_user):
     chat_id = f"{username}_{target_user}" if username < target_user else f"{target_user}_{username}"
@@ -255,7 +283,7 @@ async def broadcast_users_list():
     user_list = ",".join(connected_users.keys())  # Convert user list to a string
 
     for user, connections in list(connected_users.items()):  
-        connections_copy = list(connections) 
+        connections_copy = list(connections)
         for conn in connections_copy:  
             try:
                 await conn.send(f"USERS:{user_list}")
@@ -307,10 +335,13 @@ async def shutServer(server, stop_event):
         return  
     shutting_down = True
 
+
     print("Shutting down server...")
+
 
     global chat_storage
     chat_storage.clear()  
+
 
     tasks = []
     for user, connections in list(connected_users.items()):  
@@ -321,16 +352,15 @@ async def shutServer(server, stop_event):
             except websockets.exceptions.ConnectionClosed:
                 continue  
 
-    await asyncio.gather(*tasks, return_exceptions=True) 
+    await asyncio.gather(*tasks, return_exceptions=True)
     connected_users.clear()  
 
     server.close()
     await server.wait_closed()
 
     print("Chat history cleared. Server successfully shut down.")
-    
+   
     stop_event.set()  
-
 
 
 shutting_down = False  
@@ -345,6 +375,7 @@ async def main():
 
     server = await websockets.serve(handler, "localhost", 9000)
 
+
     def shutDown(signal_received, frame):
         global shutting_down
         if shutting_down:
@@ -352,12 +383,13 @@ async def main():
         loop = asyncio.get_running_loop()
         loop.call_soon_threadsafe(asyncio.create_task, shutServer(server, stop_event))  
 
+
     signal.signal(signal.SIGINT, shutDown)  
 
     try:
         await stop_event.wait()  
     finally:
-        await shutServer(server, stop_event) 
+        await shutServer(server, stop_event)
 
 
 if __name__ == "__main__":
