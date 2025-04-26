@@ -15,6 +15,7 @@ async def chat_client():
                 password = await asyncio.to_thread(input, "Enter password: ")
                 
                 #send login credentials to the server
+                await websocket.send(action)
                 await websocket.send(username)
                 await websocket.send(password)
 
@@ -30,6 +31,7 @@ async def chat_client():
                 async def receive_messages():
                     while True:
                         try:
+                            response = await websocket.recv()
                             # Sees if there's a file
                             try:
                                 fileMessage = json.loads(response)  # JSON parse
@@ -45,7 +47,6 @@ async def chat_client():
                             except json.JSONDecodeError:
                                 pass  # Pass because not a file
 
-                            response = await websocket.recv()
                             if response.startswith("USERS:"):
                                 users = response[6:].split(",")
                                 print("\nOnline Users:")
