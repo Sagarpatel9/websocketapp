@@ -9,7 +9,7 @@ import os
 import bcrypt
 import traceback
 import datetime
-
+from google.cloud import storage
 
 USER_DB_FILE = "users.txt"
 LOG_FOLDER = "wss_logs"
@@ -31,6 +31,42 @@ LOCKOUT_TIME = 20  # 5 minutes
 shutting_down = False
 
 
+def download_users_file(bucket_name, destination_file_name):
+    try:
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        blob = bucket.blob('users.txt')
+        blob.download_to_filename(destination_file_name)
+        print(f"Downloaded users.txt from bucket {bucket_name}")
+    except Exception as e:
+        print(f"No existing users.txt found. Fresh start. {e}")
+
+def upload_users_file(bucket_name, source_file_name):
+    try:
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        blob = bucket.blob('users.txt')
+        blob.upload_from_filename(source_file_name)
+        print(f"Uploaded users.txt to bucket {bucket_name}")
+    except Exception as e:
+        print(f"Failed to upload users.txt: {e}")
+
+def upload_log_file(bucket_name, local_log_file_path):
+    try:
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        filename = os.path.basename(local_log_file_path)
+        blob = bucket.blob(f"logs/{filename}")  # Save logs inside a 'logs/' folder
+        blob.upload_from_filename(local_log_file_path)
+        print(f"Uploaded log {filename} to bucket {bucket_name}")
+    except Exception as e:
+        print(f"Failed to upload log file {local_log_file_path}: {e}")
+
+def conversation_log_file(user1, user2):
+    users = sorted([user1, user2])
+    return os.path.join(LOG_FOLDER, f"chat-{users[0]}_{users[1]}.txt")
+
+
 
 
 # Load users from file
@@ -47,10 +83,6 @@ def load_users():
                 
     return users
 
-def new_log():
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    logFile = os.path.join(LOG_FOLDER, f"chat-{timestamp}.txt")
-    return logFile
 
 def msgRec(logFile, sender, message):
    
@@ -92,6 +124,7 @@ async def handler(websocket):
                 await websocket.send("REGISTER_FAILED: Username already exists.")
             else:
                 save_user(reg_username, reg_password)
+                upload_users_file("securechat-users-bucket", "users.txt")
                 await websocket.send("REGISTER_SUCCESS")
             
             return 
@@ -283,10 +316,28 @@ async def handler(websocket):
                 print(f"!!! Error during final websocket close: {close_err} !!!")
         
             # --- Logging Messages ---
-            sessionLog = new_log()
-            orderedList = sorted(msgList, key=lambda x: x[2])
-            for sender, msg, _ in orderedList:
-                msgRec(sessionLog, sender, msg)
+            
+            if msgList:
+                users_in_convo = set()
+
+                # Find users involved in the private conversation
+                for sender, msg, _ in msgList:
+                    if msg.startswith("@"):
+                        parts = msg.split(" ", 1)
+                        if len(parts) > 1:
+                            target_user = parts[0][1:]
+                            users_in_convo.update([sender, target_user])
+
+                if len(users_in_convo) == 2:
+                    user1, user2 = sorted(list(users_in_convo))
+                    sessionLog = conversation_log_file(user1, user2)
+
+                    orderedList = sorted(msgList, key=lambda x: x[2])
+                    for sender, msg, _ in orderedList:
+                        msgRec(sessionLog, sender, msg)
+
+                    upload_log_file("securechat-users-bucket", sessionLog)
+
 
     except Exception as outer_error:
         print(f"!!! Outer error in handler for {websocket.remote_address}: {outer_error} !!!")
@@ -456,7 +507,11 @@ async def main():
     stop_event = asyncio.Event()
 
 
-    server = await websockets.serve(handler, "localhost", 9000)
+    
+
+    port = int(os.environ.get("PORT", 9000))
+    server = await websockets.serve(handler, "0.0.0.0", port)
+
 
     def shutDown(signal_received, frame):
         global shutting_down
@@ -475,13 +530,16 @@ async def main():
 
 if __name__ == "__main__":
     try:
+        download_users_file("securechat-users-bucket", "users.txt")  # your real bucket name
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(main())
     except KeyboardInterrupt:
         print("Server shutting down...")
     finally:
+        upload_users_file("securechat-users-bucket", "users.txt")  # your real bucket name
+
         pending = asyncio.all_tasks(loop)
         loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-        loop.run_until_complete(asyncio.sleep(1))  # Allow tasks to finish
+        loop.run_until_complete(asyncio.sleep(1))
         loop.close()

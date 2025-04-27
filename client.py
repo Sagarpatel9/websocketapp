@@ -4,7 +4,7 @@ import json
 import base64
 
 async def chat_client():
-    uri = "ws://localhost:9000"
+    uri = "wss://chat-server-965301149573.us-central1.run.app"
     
     while True:  # Reconnection attempt
         try:

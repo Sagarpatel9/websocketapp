@@ -438,7 +438,8 @@
         }
 
         function connectSocket(action, uname, pwd) {
-            const newSocket = new WebSocket("ws://localhost:9000");
+            const newSocket = new WebSocket("wss://chat-server-965301149573.us-central1.run.app");
+
 
             newSocket.onopen = function () {
                 newSocket.send(action);
