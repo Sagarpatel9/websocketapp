@@ -247,6 +247,23 @@
              background-color: #FF3B3B;
          }
 
+         #emoji-btn {
+             width: 70px;
+             padding: 12px;
+             font-size: 16px;
+             border-radius: 8px;
+             border: none;
+             background-color: #FF6B6B;
+             cursor: pointer;
+             margin-right: 140px;
+        }
+
+
+         #emoji-btn:hover {
+             background-color: #FF3B3B;
+        }
+
+
     </style>
 </head>
 
@@ -302,8 +319,12 @@
                 <button id="send-btn">Send</button>
             </div>
             <div id="file-box">
+                <button id="emoji-btn">😀</button>
                 <input type="file" id="file-input">
                 <button id="file-btn" onclick="shareFile()">Share file</button>
+            </div>
+            <div id="emoji-picker" style="display: none; position: absolute; background: white; border: 1px solid #ccc; border-radius: 5px; padding: 10px; z-index: 100; max-width: 300px; max-height: 200px; overflow-y: auto;">
+               
             </div>
         </div>
     </div>
@@ -318,6 +339,15 @@
         let maxAttempts = 5;
         let lockoutTimer;
         let key;
+        const emojiBtn = document.getElementById("emoji-btn");
+        const emojiPicker = document.getElementById("emoji-picker");
+        const messageInput = document.getElementById("message-input");
+
+
+        const emojis = [
+        "😊", "😐", "😞", "🦖", "🏝️", "🤖", "🍓", "🦄", "🌌", "🐢", "🍕", "🦋", "🌻", "🐱", "🍀", "🧩", "🤩", "🍪", "🦋", "🏀"
+        ];
+
 
         fetch("key.txt")
             .then(response => response.text())
@@ -418,6 +448,24 @@
                         alert("There has been an error with the file.");
                 };
         }
+
+        function pickEmoji() {
+            emojiPicker.innerHTML = "";
+            emojis.forEach(emoji => {
+                const span = document.createElement("span");
+                span.textContent = emoji;
+                span.style.fontSize = "24px";
+                span.style.margin = "5px";
+                span.style.cursor = "pointer";
+                span.onclick = function() {
+                    messageInput.value += emoji;
+                    emojiPicker.style.display = "none";
+                    messageInput.focus();
+                };
+                emojiPicker.appendChild(span);
+            });
+        }
+
 
         function encMsg(message) {
             let encrypted = CryptoJS.AES.encrypt(message, CryptoJS.enc.Hex.parse(key), {
@@ -686,6 +734,28 @@
         italic = false;
         underline = false;
         strikethru = false;
+    });
+
+        emojiBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
+   
+        const rect = emojiBtn.getBoundingClientRect();
+        emojiPicker.style.left = rect.left + "px";
+        emojiPicker.style.top = (rect.bottom + 5) + "px";
+       
+        if (emojiPicker.style.display === "none") {
+            pickEmoji();
+            emojiPicker.style.display = "block";
+        } else {
+            emojiPicker.style.display = "none";
+        }
+    });
+
+
+        document.addEventListener("click", function(e) {
+            if (e.target !== emojiBtn && !emojiPicker.contains(e.target)) {
+                emojiPicker.style.display = "none";
+            }
     });
 
 
