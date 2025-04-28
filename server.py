@@ -13,6 +13,8 @@ from google.cloud import storage
 
 USER_DB_FILE = "users.txt"
 LOG_FOLDER = "wss_logs"
+regTimeList = {}  
+REG_RATE_LIM = 15
 
 if not os.path.exists(LOG_FOLDER):
     os.makedirs(LOG_FOLDER)
@@ -110,24 +112,33 @@ async def handler(websocket):
         action = await websocket.recv()
 
         if action == "register":
-            # Use distinct variable names for registration
             reg_username = await websocket.recv()
             reg_password = await websocket.recv()
-
-            
+   
+            ipAddr = websocket.remote_address[0]
+            current_time = time.time()
+   
+            if ipAddr in regTimeList and current_time - regTimeList[ipAddr] < REG_RATE_LIM:
+                await websocket.send("REGISTER_FAILED: Registration rate limiting. Please wait for a moment until you're allowed.")
+                return
+   
             if not reg_username or not reg_password or ' ' in reg_username:
-                 await websocket.send("REGISTER_FAILED: Invalid username or password.")
-                 
-                 return 
+                await websocket.send("REGISTER_FAILED: Invalid username or password.")
+                return
+
+
+
 
             if reg_username in stored_users:
                 await websocket.send("REGISTER_FAILED: Username already exists.")
             else:
+                regTimeList[ipAddr] = current_time
                 save_user(reg_username, reg_password)
-                upload_users_file("securechat-users-bucket", "users.txt")
+                upload_users_file("securechat-users-bucket", USER_DB_FILE)
                 await websocket.send("REGISTER_SUCCESS")
-            
-            return 
+           
+            return
+
 
         elif action == "login":
             # Use a specific variable for the login attempt
@@ -413,14 +424,18 @@ async def send_private_chat_history(websocket, username, target_user):
     
 
 
+
 async def broadcast_users_list():
+    all_users = load_users().keys()  # load from users.txt
+    online_users = sorted(connected_users.keys())
+    offline_users = sorted(set(all_users) - set(online_users))
+
+    user_list_message = f"USERLIST:{','.join(online_users)}|{','.join(offline_users)}"
     
-    user_list = ",".join(sorted(connected_users.keys())) 
     connections_to_send = [conn for conn_set in connected_users.values() for conn in conn_set]
 
-    # Use gather for concurrent sending
     results = await asyncio.gather(
-        *[conn.send(f"USERS:{user_list}") for conn in connections_to_send],
+        *[conn.send(user_list_message) for conn in connections_to_send],
         return_exceptions=True
     )
     for i, res in enumerate(results):
