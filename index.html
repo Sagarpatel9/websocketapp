@@ -298,7 +298,7 @@
     <div id="chat-wrapper">
         <!-- Sidebar for users -->
         <div id="users-container">
-            <h3>Online Users</h3>
+            <h3>User List</h3>
             <div id="users-list"></div>
         </div>
     
@@ -328,7 +328,7 @@
             </div>
         </div>
     </div>
-    
+
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script>
@@ -342,6 +342,8 @@
         const emojiBtn = document.getElementById("emoji-btn");
         const emojiPicker = document.getElementById("emoji-picker");
         const messageInput = document.getElementById("message-input");
+        let onlineUsernames = [];
+
 
 
         const emojis = [
@@ -513,10 +515,13 @@
                 }
 
                 // Handle text-based system messages
-                if (event.data.startsWith("USERS:")) {
-                    let usersList = event.data.substring(6).split(",");
-                    updateUsersList(usersList);
-                } else if (event.data === "Authentication successful. You can start chatting.") {
+                if (event.data.startsWith("USERLIST:")) {
+                    const [onlinePart, offlinePart] = event.data.substring(9).split("|");
+                    const onlineUsers = onlinePart.split(",").filter(u => u.trim() !== "");
+                    const offlineUsers = offlinePart.split(",").filter(u => u.trim() !== "");
+                    updateUsersList(onlineUsers, offlineUsers);
+                }
+                else if (event.data === "Authentication successful. You can start chatting.") {
                     document.getElementById("login-status").style.color = "green";
                     document.getElementById("login-status").innerText = "Login successful! Redirecting...";
                     setTimeout(() => {
@@ -700,6 +705,12 @@
             return;
         }
 
+        if (!onlineUsernames.includes(currentChatUser)) {
+            alert(`${currentChatUser} is offline. You cannot send messages to offline users.`);
+
+            return;
+        }
+
         // Ignore empty messages
         if (message === "") {
             return;
@@ -771,15 +782,25 @@
             document.getElementById('chat-wrapper').style.display = "none";
         }
 
-        function updateUsersList(users) {
+        function updateUsersList(onlineUsers, offlineUsers) {
+            onlineUsernames = onlineUsers;
             const userContainer = document.getElementById("users-list");
-            userContainer.innerHTML = "";  
+            userContainer.innerHTML = "";
 
-            users.forEach(user => {
-                if (user.trim() !== "" && user !== username) {  
-                    let userElement = document.createElement("div");
-                    userElement.innerText = user;
-                    userElement.className = "user-item";
+            const allUsers = [...new Set([...onlineUsers, ...offlineUsers])].sort();
+
+            allUsers.forEach(user => {
+                if (user !== username) {
+                    const userElement = document.createElement("div");
+                    if (onlineUsers.includes(user)) {
+                        userElement.innerHTML = `🟢 <strong>${user}</strong>`;
+                        userElement.className = "user-item";
+                        userElement.style.color = "green";
+                    } else {
+                        userElement.innerHTML = `⚫ ${user}`;
+                        userElement.className = "user-item";
+                        userElement.style.color = "gray";
+                    }
                     userElement.onclick = function () { openChat(user); };
                     userContainer.appendChild(userElement);
                 }

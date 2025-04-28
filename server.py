@@ -413,14 +413,18 @@ async def send_private_chat_history(websocket, username, target_user):
     
 
 
+
 async def broadcast_users_list():
+    all_users = load_users().keys()  # load from users.txt
+    online_users = sorted(connected_users.keys())
+    offline_users = sorted(set(all_users) - set(online_users))
+
+    user_list_message = f"USERLIST:{','.join(online_users)}|{','.join(offline_users)}"
     
-    user_list = ",".join(sorted(connected_users.keys())) 
     connections_to_send = [conn for conn_set in connected_users.values() for conn in conn_set]
 
-    # Use gather for concurrent sending
     results = await asyncio.gather(
-        *[conn.send(f"USERS:{user_list}") for conn in connections_to_send],
+        *[conn.send(user_list_message) for conn in connections_to_send],
         return_exceptions=True
     )
     for i, res in enumerate(results):
