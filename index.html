@@ -377,7 +377,14 @@
                 return;
             }
 
-            socket = connectSocket("login", username, password);
+            if (!sanUser(username)) {
+                document.getElementById("login-status").innerText = "Only letters, digits, and underscores are allowed in the username.";
+                return;
+            }
+
+            const cleanPass = sanPass(password);
+
+            socket = connectSocket("login", username, cleanPass);
 
         }
 
@@ -390,8 +397,48 @@
                 return;
             }
 
-            socket = connectSocket("register", regUsername, regPassword);
+            if (!sanUser(regUsername)) {
+                document.getElementById("register-status").innerText = "Only letters, digits, and underscores are allowed in usernames.";
+                return;
+            }
+
+            const cleanPass = sanPass(regPassword);
+
+            socket = connectSocket("register", regUsername, cleanPass);
         }
+
+        function sanUser(input) {
+            const charList = /^[a-zA-Z0-9_]+$/;
+            return charList.test(input);
+        }
+
+        function sanPass(input) {
+            return input
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function sanMsg(input) {
+            return input
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function protoCheck(url) {
+            try {
+                const parseLink = new URL(url);
+                return parseLink.protocol === "https:" || parseLink === "http:";
+            } catch {
+                return false;
+            }
+        }
+
 
         function shareFile() {
                 let fileInput = document.getElementById("file-input");
@@ -433,7 +480,7 @@
 
                                 let link = document.createElement("a");
                                 link.href = event.target.result;
-                                link.download = fileName;
+                                link.download = sanMsg(fileName);
                                 link.style.color = "blue";
                                 link.style.textDecoration = "underline";
 
@@ -617,7 +664,7 @@
                         let link = document.createElement("a");
                         link.href = "data:application/octet-stream;base64," + fileObj.data;
                         link.download = fileObj.name;
-                        link.textContent = `${sender === username ? "You" : sender} sent a file: ${fileObj.name}`;
+                        link.textContent = `${sender === username ? "You" : sender} sent a file: ${sanMsg(fileObj.name)}`;
                         link.style.color = "blue";
                         link.style.textDecoration = "underline";
                 
@@ -643,7 +690,13 @@
                 // Replace URLs with clickable links
                 decryptedText = decryptedText.replace(
                     /(https?:\/\/[^\s]+)/g,
-                    '<a href="$1" style="color:blue;">$1</a>'
+                    function (url) {
+                        if (protoCheck(url)) {
+                            return `<a href="${sanMsg(url)}" style="color:blue;" target="_blank" rel="noopener noreferrer">${sanMsg(url)}</a>`;
+                        } else {
+                            return "[Link not safe!]";
+                        }
+                    }
                 );
 
                 messageContainer.innerHTML = decryptedText;
@@ -717,17 +770,21 @@
         }
 
         // Apply formatting
+        let cleanMsg = sanMsg(message);
         if (bold) {
-            message = `<b>${message}</b>`;
+            message = `<b>${cleanMsg}</b>`;
         }
-        if (italic) {
-            message = `<i>${message}</i>`;
+        else if (italic) {
+            message = `<i>${cleanMsg}</i>`;
         }
-        if (underline) {
-            message = `<u>${message}</u>`;
+        else if (underline) {
+            message = `<u>${cleanMsg}</u>`;
         }
-        if (strikethru) {
-            message = `<s>${message}</s>`;
+        else if (strikethru) {
+            message = `<s>${cleanMsg}</s>`;
+        }
+        else{
+            message = cleanMsg;
         }
 
         // Encrypt and send
