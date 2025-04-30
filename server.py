@@ -9,6 +9,8 @@ import os
 import bcrypt
 import traceback
 import datetime
+import re
+import html
 from google.cloud import storage
 
 USER_DB_FILE = "users.txt"
@@ -68,7 +70,17 @@ def conversation_log_file(user1, user2):
     users = sorted([user1, user2])
     return os.path.join(LOG_FOLDER, f"chat-{users[0]}_{users[1]}.txt")
 
+def sanUser(username):
+    return username if re.fullmatch(r"\w+", username) else None
 
+def sanText(text):
+    return html.escape(text, quote=True)
+
+def sanFileName(fileName):
+    return os.path.basename(fileName)  
+
+def sanLog(text):
+    return text.replace('\n', '\\n').replace('\r', '\\r').strip()
 
 
 # Load users from file
@@ -113,7 +125,7 @@ async def handler(websocket):
 
         if action == "register":
             reg_username = await websocket.recv()
-            reg_password = await websocket.recv()
+            reg_password = sanText(await websocket.recv())
    
             ipAddr = websocket.remote_address[0]
             current_time = time.time()
@@ -122,9 +134,12 @@ async def handler(websocket):
                 await websocket.send("REGISTER_FAILED: Registration rate limiting. Please wait for a moment until you're allowed.")
                 return
    
-            if not reg_username or not reg_password or ' ' in reg_username:
+            cleanUser = sanUser(reg_username)
+            if not cleanUser or not reg_password:
                 await websocket.send("REGISTER_FAILED: Invalid username or password.")
                 return
+            reg_username = cleanUser
+
 
 
 
@@ -143,11 +158,12 @@ async def handler(websocket):
         elif action == "login":
             # Use a specific variable for the login attempt
             login_username_attempt = await websocket.recv()
-            password = await websocket.recv()
+            password = sanText(await websocket.recv())
 
+            login_username_attempt = sanUser(login_username_attempt)
             if not login_username_attempt or not password:
                 await websocket.send("AUTH_FAILED:N/A")
-                return 
+                return
 
             
             if login_username_attempt in failed_attempts and \
@@ -221,6 +237,9 @@ async def handler(websocket):
                     print(f"Warning: Received non-string message from '{username}'. Type: {type(message)}. Ignoring.")
                     continue
 
+                message = sanText(message)
+
+
                 if message == "disconnecting":
                     print(f"{username} has disconnected.")
                     break
@@ -255,7 +274,9 @@ async def handler(websocket):
                         msgList.append((username, message, msgTime))
         
                         if target_user in connected_users:
-                            save_message_to_memory(username, target_user, msg_content)
+                            cleanMsg = sanText(msg_content)
+                            save_message_to_memory(username, target_user, cleanMsg)
+
                             formatted_msg = f"{username}: {msg_content}"
         
                             for conn in list(connected_users[target_user]):
@@ -345,7 +366,7 @@ async def handler(websocket):
 
                     orderedList = sorted(msgList, key=lambda x: x[2])
                     for sender, msg, _ in orderedList:
-                        msgRec(sessionLog, sender, msg)
+                        msgRec(sessionLog, sanUser(sender) or "unknown", sanLog(msg))
 
                     upload_log_file("securechat-users-bucket", sessionLog)
 
