@@ -263,6 +263,46 @@
              background-color: #FF3B3B;
         }
 
+        #profile-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: #fff;
+            padding: 10px 15px;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            font-size: 14px;
+            color: #333;
+            z-index: 10;
+        }
+
+        #profile-section span {
+            font-weight: bold;
+            color: #FF3B3B;
+        }
+
+        #profile-section button {
+            padding: 6px 12px;
+            font-size: 13px;
+            background: #FF6B6B;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        #profile-section button:hover {
+            background-color: #FF3B3B;
+        }
+
+
+
+
+
 
     </style>
 </head>
@@ -294,8 +334,18 @@
         <p id="register-status" style="color: red; font-weight: bold;"></p>
     </div>
 
+
+
+
     <!-- Chat Interface -->
     <div id="chat-wrapper">
+        <!-- User Profile Display -->
+        <div id="profile-section" style="display: none;">
+            <div>🔐 Logged in as: <span id="profile-username"></span></div>
+            <button onclick="logout()">Logout</button>
+        </div>
+        
+
         <!-- Sidebar for users -->
         <div id="users-container">
             <h3>User List</h3>
@@ -536,6 +586,7 @@
 
         function connectSocket(action, uname, pwd) {
             const newSocket = new WebSocket("wss://chat-server-965301149573.us-central1.run.app");
+            username = uname;
 
 
             newSocket.onopen = function () {
@@ -574,6 +625,8 @@
                     setTimeout(() => {
                         document.getElementById("login-container").style.display = "none";
                         document.getElementById("chat-wrapper").style.display = "flex";
+                        document.getElementById("profile-username").innerText = username;       
+                        document.getElementById("profile-section").style.display = "block";
                     }, 1000);
                 } else if (event.data === "REGISTER_SUCCESS") {
                     document.getElementById("register-status").style.color = "green";
@@ -666,11 +719,19 @@
                 return; // Don't process messages that don't follow the "username: encryptedText" format
             }
 
+            let sender = message.split(":")[0].trim();
+            let encryptedText = message.split(":").slice(1).join(":").trim();
+
+            // Only show the message if it is from or to the currently selected user
+            if (sender !== currentChatUser && sender !== username) {
+                // It's not part of the current conversation
+                return;
+            }
+
             let chatBox = document.getElementById("chat-box");
             let messageWrapper = document.createElement("div");
 
-            let sender = message.split(":")[0].trim();
-            let encryptedText = message.split(":").slice(1).join(":").trim();
+
             let decryptedText = decMsg(encryptedText);
     
             try {
@@ -890,6 +951,12 @@
             username = null;  
             document.getElementById('login-container').style.display = "block";
             document.getElementById('chat-wrapper').style.display = "none";
+            document.getElementById("profile-section").style.display = "none";
+
+
+            document.getElementById("username").value = "";
+            document.getElementById("password").value = "";
+            document.getElementById("login-status").innerText = "";
         }
 
         function updateUsersList(onlineUsers, offlineUsers) {
