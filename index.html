@@ -588,7 +588,37 @@
                     let remainingTime = parseInt(event.data.split(":")[1], 10);
                     document.getElementById("login-status").innerText = `Account locked. Try again in ${remainingTime} seconds.`;
                     startLockoutTimer(remainingTime);
-                } else {
+                }else if (event.data.startsWith("TYPING:")) {
+                    const sender = event.data.split(":")[1];
+                    if (sender === currentChatUser) {
+                        const existing = document.getElementById("typing-indicator");
+                        if (!existing) {
+                            const chatBox = document.getElementById("chat-box");
+
+                            const wrapper = document.createElement("div");
+                            wrapper.classList.add("message-wrapper", "left");
+                            wrapper.id = "typing-indicator";
+
+                            const bubble = document.createElement("div");
+                            bubble.classList.add("chat-message", "received");
+                            bubble.style.fontStyle = "italic";
+                            bubble.style.opacity = "0.6";
+                            bubble.innerText = "Typing...";
+
+                            wrapper.appendChild(bubble);
+                            chatBox.appendChild(wrapper);
+                            chatBox.scrollTop = chatBox.scrollHeight;
+                        }
+                    }
+                } else if (event.data.startsWith("STOP_TYPING:")) {
+                    const sender = event.data.split(":")[1];
+                    if (sender === currentChatUser) {
+                        const existing = document.getElementById("typing-indicator");
+                        if (existing) {
+                            existing.remove();
+                        }
+                    }
+                }else {
                     appendMessage(event.data); // Handle encrypted text messages
                 }
             };
@@ -748,6 +778,21 @@
         }
     });
 
+
+    let typingTimeout;
+
+        document.getElementById("message-input").addEventListener("input", function () {
+        if (!currentChatUser || socket.readyState !== WebSocket.OPEN) return;
+
+        socket.send(`TYPING:${currentChatUser}`);
+
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            socket.send(`STOP_TYPING:${currentChatUser}`);
+        }, 1000); 
+    });
+
+
         document.getElementById("send-btn").addEventListener("click", function() {
         const msgInput = document.getElementById("message-input");
         let message = msgInput.value.trim();
@@ -795,6 +840,14 @@
 
         let encryptedMessage = encMsg(message);
         socket.send(`@${currentChatUser} ${encryptedMessage}`);
+
+        const typingEl = document.getElementById("typing-indicator");
+        if (typingEl) typingEl.remove(); 
+
+        clearTimeout(typingTimeout);
+        socket.send(`STOP_TYPING:${currentChatUser}`);
+
+
         msgInput.value = "";
 
         // Reset formatting flags

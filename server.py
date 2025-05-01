@@ -244,6 +244,20 @@ async def handler(websocket):
                     print(f"{username} has disconnected.")
                     break
 
+                # Typing notification handling
+                if message.startswith("TYPING:") or message.startswith("STOP_TYPING:"):
+                    parts = message.split(":", 1)
+                    if len(parts) == 2:
+                        target_user = parts[1]
+                        if target_user in connected_users:
+                            for conn in connected_users[target_user]:
+                                try:
+                                    await conn.send(f"{message.split(':')[0]}:{username}")
+                                except:
+                                    continue
+                    continue  
+
+
                 # --- Chat History Request ---
                 if message.startswith("HISTORY_REQUEST:"):
                     parts = message.split(":", 1)
