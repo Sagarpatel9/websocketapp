@@ -964,25 +964,31 @@
             const userContainer = document.getElementById("users-list");
             userContainer.innerHTML = "";
 
-            const allUsers = [...new Set([...onlineUsers, ...offlineUsers])].sort();
-
-            allUsers.forEach(user => {
+            // Show online users
+            onlineUsers.sort().forEach(user => {
                 if (user !== username) {
                     const userElement = document.createElement("div");
-                    if (onlineUsers.includes(user)) {
-                        userElement.innerHTML = `🟢 <strong>${user}</strong>`;
-                        userElement.className = "user-item";
-                        userElement.style.color = "green";
-                    } else {
-                        userElement.innerHTML = `⚫ ${user}`;
-                        userElement.className = "user-item";
-                        userElement.style.color = "gray";
-                    }
-                    userElement.onclick = function () { openChat(user); };
+                    userElement.innerHTML = `🟢 <strong>${user}</strong>`;
+                    userElement.className = "user-item";
+                    userElement.style.color = "green";
+                    userElement.onclick = () => openChat(user);
+                    userContainer.appendChild(userElement);
+                }
+            });
+
+            // Show offline users
+            offlineUsers.sort().forEach(user => {
+                if (user !== username) {
+                    const userElement = document.createElement("div");
+                    userElement.innerHTML = `⚫ ${user}`;
+                    userElement.className = "user-item";
+                    userElement.style.color = "gray";
+                    userElement.onclick = () => openChat(user);
                     userContainer.appendChild(userElement);
                 }
             });
         }
+
 
         function openChat(user) {
         currentChatUser = user;

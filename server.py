@@ -99,9 +99,9 @@ def load_users():
 
 
 def msgRec(logFile, sender, message):
-   
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(logFile, 'a') as file:
-        file.write(f'{sender} -> {message}\n')
+        file.write(f'[{timestamp}] {sender} -> {message}\n')
 
 
 # Save new user to file
