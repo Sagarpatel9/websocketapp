@@ -393,6 +393,8 @@
         const emojiPicker = document.getElementById("emoji-picker");
         const messageInput = document.getElementById("message-input");
         let onlineUsernames = [];
+        let offlineUsernames = [];
+        const unreadCounts = {};
 
 
 
@@ -724,9 +726,12 @@
 
             // Only show the message if it is from or to the currently selected user
             if (sender !== currentChatUser && sender !== username) {
-                // It's not part of the current conversation
+                if (!unreadCounts[sender]) unreadCounts[sender] = 0;
+                unreadCounts[sender]++;
+                updateUsersList(onlineUsernames, offlineUsernames); 
                 return;
             }
+
 
             let chatBox = document.getElementById("chat-box");
             let messageWrapper = document.createElement("div");
@@ -961,6 +966,7 @@
 
         function updateUsersList(onlineUsers, offlineUsers) {
             onlineUsernames = onlineUsers;
+            offlineUsernames = offlineUsers;
             const userContainer = document.getElementById("users-list");
             userContainer.innerHTML = "";
 
@@ -968,7 +974,8 @@
             onlineUsers.sort().forEach(user => {
                 if (user !== username) {
                     const userElement = document.createElement("div");
-                    userElement.innerHTML = `🟢 <strong>${user}</strong>`;
+                    const count = unreadCounts[user] || 0;
+                    userElement.innerHTML = `🟢 <strong>${user}</strong>${count > 0 ? ` <span style="color:red;">(${count})</span>` : ''}`;
                     userElement.className = "user-item";
                     userElement.style.color = "green";
                     userElement.onclick = () => openChat(user);
@@ -991,15 +998,18 @@
 
 
         function openChat(user) {
-        currentChatUser = user;
-        document.getElementById("chat-title").innerText = `Chat with ${user}`;
-        document.getElementById("chat-box").innerHTML = "";
+            currentChatUser = user;
+            document.getElementById("chat-title").innerText = `Chat with ${user}`;
+            document.getElementById("chat-box").innerHTML = "";
+            unreadCounts[user] = 0;
+            updateUsersList(onlineUsernames, offlineUsernames);
 
-            // Request chat history from the server
+
+                // Request chat history from the server
             if (socket.readyState === WebSocket.OPEN) {
-                socket.send(`HISTORY_REQUEST:${user}`);
+            socket.send(`HISTORY_REQUEST:${user}`);
             }
-    }
+        }
     
 
     </script>
