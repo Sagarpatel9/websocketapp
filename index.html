@@ -177,14 +177,25 @@
         /* Chat Input */
         #chat-input {
             display: flex;
+            flex-direction: column;
+            gap: 10px;
             padding: 10px;
             border-top: 2px solid #ddd;
-            gap: 10px;
-            align-items: center;
-            justify-content: flex-end;
         }
 
-        #message-input {
+        .row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .message-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .message-row input[type="text"] {
             flex: 1;
             padding: 12px;
             font-size: 16px;
@@ -193,12 +204,11 @@
         }
 
         #send-btn {
-            padding: 8px 15px; 
+            padding: 10px 16px;
             font-size: 14px;
+            width: auto;
+            min-width: 70px;
             border-radius: 6px;
-            min-width: 60px;
-            max-width: 100px;
-            border: none;
             background-color: #FF6B6B;
             color: white;
             cursor: pointer;
@@ -208,6 +218,90 @@
         #send-btn:hover {
             background-color: #FF3B3B;
         }
+
+        .below-message {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        #emoji-btn {
+            padding: 6px 10px;
+            font-size: 18px;
+            border-radius: 6px;
+            border: none;
+            background-color: #FF6B6B;
+            color: white;
+            cursor: pointer;
+            height: 38px;
+            width: 40px;
+        }
+
+        #emoji-btn:hover {
+            background-color: #FF3B3B;
+        }
+
+        .file-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .file-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        #file-input {
+            flex: 1;
+        }
+
+        #file-btn {
+            padding: 10px 14px;
+            font-size: 14px;
+            border-radius: 6px;
+            background-color: #FF6B6B;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #file-btn:hover {
+            background-color: #FF3B3B;
+        }
+
+        #file-warning {
+            font-size: 12px;
+            color: #555;
+            text-align: right;
+        }
+
+        /* Mobile-friendly layout */
+        @media screen and (max-width: 480px) {
+            .message-row,
+            .below-message,
+            .file-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            #file-warning {
+                text-align: center;
+            }
+
+            #send-btn,
+            #file-btn,
+            #emoji-btn {
+                width: 100%;
+            }
+        }
+
+
+
+
         
         #register-container {
         display: none;
@@ -232,36 +326,7 @@
              border-radius: 8px;
              padding: 10px;
          }
- 
-         #file-btn {
-             width: 120px;
-             padding: 12px;
-             font-size: 16px;
-             border-radius: 8px;
-             border: none;
-             background-color: #FF6B6B;
-             cursor: pointer;
-         }
- 
-         #file-btn:hover {
-             background-color: #FF3B3B;
-         }
 
-         #emoji-btn {
-             width: 70px;
-             padding: 12px;
-             font-size: 16px;
-             border-radius: 8px;
-             border: none;
-             background-color: #FF6B6B;
-             cursor: pointer;
-             margin-right: 140px;
-        }
-
-
-         #emoji-btn:hover {
-             background-color: #FF3B3B;
-        }
 
         #profile-section {
             display: flex;
@@ -365,14 +430,23 @@
 
             <div id="chat-box"></div>
             <div id="chat-input">
-                <input type="text" id="message-input" placeholder="Type a message...">
-                <button id="send-btn">Send</button>
+                <div class="row message-row">
+                    <input type="text" id="message-input" placeholder="Type a message...">
+                    <button id="send-btn">Send</button>
+                </div>
+
+                <div class="row below-message">
+                    <button id="emoji-btn">😀</button>
+                    <div class="file-section">
+                        <div class="row file-row">
+                            <input type="file" id="file-input">
+                            <button id="file-btn" onclick="shareFile()">Share file</button>
+                        </div>
+                        <div id="file-warning">Max file size: 15MB. Executable and script files are blocked.</div>
+                    </div>
+                </div>
             </div>
-            <div id="file-box">
-                <button id="emoji-btn">😀</button>
-                <input type="file" id="file-input">
-                <button id="file-btn" onclick="shareFile()">Share file</button>
-            </div>
+        
             <div id="emoji-picker" style="display: none; position: absolute; background: white; border: 1px solid #ccc; border-radius: 5px; padding: 10px; z-index: 100; max-width: 300px; max-height: 200px; overflow-y: auto;">
                
             </div>
@@ -501,6 +575,24 @@
                         return;
                 }
 
+                // FILE SIZE CHECK: 15MB limit
+                const maxSize = 15 * 1024 * 1024; 
+                if (file.size > maxSize) {
+                    alert("File exceeds 15MB size limit.");
+                    return;
+                }
+
+                // BASIC MALWARE-TYPE CHECK: Disallowed extensions
+                const blockedExtensions = [".exe", ".bat", ".js", ".sh", ".cmd", ".msi", ".vbs", ".jar"];
+                const fileName = file.name.toLowerCase();
+                for (let ext of blockedExtensions) {
+                    if (fileName.endsWith(ext)) {
+                        alert("This file type is not allowed for security reasons.");
+                        return;
+                    }
+                }
+
+
                 let reader = new FileReader();
                 reader.readAsDataURL(file); 
 
@@ -535,6 +627,7 @@
                                 link.download = sanMsg(fileName);
                                 link.style.color = "blue";
                                 link.style.textDecoration = "underline";
+                                link.textContent = `Shared file: ${cleanName}`;
 
                                 messageContainer.appendChild(link);
                                 messageWrapper.appendChild(messageContainer);
