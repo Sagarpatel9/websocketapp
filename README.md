@@ -19,6 +19,7 @@ This only works for small files. To share large files (but < 15 MB), we have hos
 3. Mountains: https://storage.googleapis.com/securechat-filecloud-hosting/moutains.jpg
 4. Squid: https://storage.googleapis.com/securechat-filecloud-hosting/squid.jpg
 5. Statue of Liberty: https://storage.googleapis.com/securechat-filecloud-hosting/statue.jpg
+
 Simply copy and paste these links in the message input field and send.
 
 
