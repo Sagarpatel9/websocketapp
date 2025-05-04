@@ -1,16 +1,24 @@
 # websocket-app
 
 ## About
-SecureChat is a chat system made for remote colleagues of the company, SecureTech Solutions. It uses WebSockets and is secure, convenient, and efficient for messaging.
+SecureChat is a chat system made for remote colleagues of the company, SecureTech Solutions. It uses WebSockets and is secure, convenient, and efficient for messaging. It is accessible here: https://chat-455.web.app/
 
-## How to use and test?
-To login: Provide your usernames and passwords. The usernames for the two users are “user1” and “user2”. The password for both users is “password”. After logging in, messages notifying of connection will be displayed to the users and in the server as well.
+## How to use
+To register: Make a username that has not been used before along with a password. Usernames can only have letters, numbers, and underscores. You usually can only make one registration within a 15 second period to prevent bot attacks. Your username and hashed password is then stored in a file for comparison in future logins.
 
-To chat: Write your message in the text box and press the button to the right of it to send. The user’s message should appear for the other user automatically. It will also appear in the server terminal.
+To login: Provide your usernames and passwords after you register. 
 
-To test rate limiting: The users are only limited to making five messages within a twenty second period. Making more messages in a twenty second interval would bring up a message saying that you are posting too much. Look at the other user’s window to see if the “spamming” messages came through. They are not expected to go to the other user because of rate limiting.
+To chat: Write your message in the message input box and press the button to the right of it to send. The user’s message should appear for the other user automatically. You can only make up to five messages within a twenty second period. A "Typing..." indicator will appear in the middle of the screen when the other user is typing. Chats are encrypted using AES and stored in a log in ciphertext. If a user sends you a message while you are not in their chatting screen, you will see a notification showcasing the number of unread messages. Clicking into their chatting screen removes this notification.
 
-To test disconnection detection: Press the logout button for one of the users. Go to the other user that is still connected. You will see a message for that still-connected user that the disconnected user has disconnected. Go to the server and you will see that message as well.
+Status indicators: In the user list on the left (shows list of registered users), a black dot represents an offline user and a green dot represents an online user. 
 
-To test automatic reconnection after interruption: Turn off the server by doing Ctrl+C in the server terminal. You will see a message that the server is shutting down. Go to the user windows and you will see that for both users, there is a notification that there is an interruption. Restart the server to end the interruption, and you will see that both users automatically connect. You can now continue to send messages.
+To send files: Press the "Choose file" button to choose a file from your file explorer. After selecting your file, click "Share file". The file should appear as a downloadable link on the other side automatically. You can only send files that are no more than 15 MB. Script and executable files are blocked form sharing.
+
+Text formatting: To make bold text, do Ctrl + b and type. To make italicied text, do Ctrl + i and type. To make underlined text, do Ctrl + u and type. To make strikethrough text, do Ctrl + x and type. After you send your formatted message, you would have to do the control command again to send another specially formatted text. URL links are automatically shown as a clickable link on the other side. The sender just has to copy and paste the link into the message input field to send.
+
+Emoji picker: Press the 😀 button which reveals a wide variety of emojis. Click on the emoji you want to send and it automatically appears in the message input field. Click "Send" to send the emoji.
+
+To logout: On the upper right corner of the screen shows your username and the option to logout after you are done chatting.
+
+
 
