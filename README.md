@@ -12,7 +12,15 @@ To chat: Write your message in the message input box and press the button to the
 
 Status indicators: In the user list on the left (shows list of registered users), a black dot represents an offline user and a green dot represents an online user. 
 
-To send files: Press the "Choose file" button to choose a file from your file explorer. After selecting your file, click "Share file". The file should appear as a downloadable link on the other side automatically. You can only send files that are no more than 15 MB. Script and executable files are blocked form sharing.
+To send files: Press the "Choose file" button to choose a file from your file explorer. After selecting your file, click "Share file". The file should appear as a downloadable link on the other side automatically. You can only send files that are no more than 15 MB. Script and executable files are blocked from sharing. 
+This only works for small files. To share large files (but < 15 MB), we have hosted five files on Google Cloud to create public file links. They are:
+1. Mars: https://storage.googleapis.com/securechat-filecloud-hosting/mars.jpg
+2. Meme: https://storage.googleapis.com/securechat-filecloud-hosting/meme.jpg
+3. Mountains: https://storage.googleapis.com/securechat-filecloud-hosting/moutains.jpg
+4. Squid: https://storage.googleapis.com/securechat-filecloud-hosting/squid.jpg
+5. Statue of Liberty: https://storage.googleapis.com/securechat-filecloud-hosting/statue.jpg
+Simply copy and paste these links in the message input field and send.
+
 
 Text formatting: To make bold text, do Ctrl + b and type. To make italicied text, do Ctrl + i and type. To make underlined text, do Ctrl + u and type. To make strikethrough text, do Ctrl + x and type. After you send your formatted message, you would have to do the control command again to send another specially formatted text. URL links are automatically shown as a clickable link on the other side. The sender just has to copy and paste the link into the message input field to send.
 
