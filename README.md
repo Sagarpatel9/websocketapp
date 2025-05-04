@@ -1,4 +1,4 @@
-# websocket-app
+# SecureChat
 
 ## About
 SecureChat is a chat system made for remote colleagues of the company, SecureTech Solutions. It uses WebSockets and is secure, convenient, and efficient for messaging. It is accessible here: https://chat-455.web.app/
