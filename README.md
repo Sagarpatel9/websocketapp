@@ -1,7 +1,8 @@
 # SecureChat
 
 ## About
-SecureChat is a chat system made for remote colleagues of the company, SecureTech Solutions. It uses WebSockets and is secure, convenient, and efficient for messaging. It is accessible here: https://chat-455.web.app/
+SecureChat is a chat system made for remote colleagues of the company, SecureTech Solutions. It uses WebSockets and is secure, convenient, and efficient for messaging. It is accessible here: https://chat-455.web.app/ (the app is offline now)
+Watch video: 📺 [Watch Demo Video](https://youtu.be/i_Vd8bK311E?si=A0dvpieaxa6JWONM)
 
 ## How to use
 To register: Make a username that has not been used before along with a password. Usernames can only have letters, numbers, and underscores. You usually can only make one registration within a 15 second period to prevent bot attacks. Your username and hashed password is then stored in a file for comparison in future logins.
